@@ -1,5 +1,7 @@
 # Steve
 
+> *Named after the beloved monkey from Cloudy with a Chance of Meatballs - steeeeeeeve*
+
 A personal assistant that runs on Telegram, powered by the Claude CLI. No API keys needed - it uses your local Claude installation.
 
 Steve has file-based memory, modular skills defined in markdown, scheduled reminders, multi-user support, and encrypted credential storage. All your data lives in `~/.steve/` and auto-syncs to a private GitHub repo.
