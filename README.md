@@ -82,7 +82,7 @@ Steve is inspired by [OpenClaw](https://github.com/openclaw/openclaw) but takes 
 | **Philosophy** | Minimal code, Claude does the work | Full-featured agent runtime |
 | **Codebase** | ~1,100 lines | Massive monorepo |
 | **Brain** | Spawns `claude -p` per message | Embedded agent runtime with streaming |
-| **Prompt** | Lean - personality + paths only, Claude discovers the rest | Pre-loads skills, memory search results, bootstrap files |
+| **Prompt** | Lean - personality + paths only, Claude discovers the rest | Bootstrap files + eligible skills + memory search results |
 | **Skills** | Same format (SKILL.md + scripts) | Same format + registry + gating + hot-reload |
 | **Memory** | File-based, Claude uses Glob/Grep | File-based + SQLite vector index |
 | **Channels** | Telegram | 21+ (WhatsApp, Slack, Discord, etc.) |
