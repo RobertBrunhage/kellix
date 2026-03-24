@@ -51,12 +51,14 @@ function createDirectories() {
 function copyDefaults() {
   const copied: string[] = [];
 
-  // Persona
-  const defaultPersona = join(config.defaultsDir, "persona.md");
-  const userPersona = join(steveDir, "persona.md");
-  if (existsSync(defaultPersona) && !existsSync(userPersona)) {
-    cpSync(defaultPersona, userPersona);
-    copied.push("persona.md");
+  // Copy markdown files from defaults/
+  for (const file of ["persona.md", "system.md"]) {
+    const src = join(config.defaultsDir, file);
+    const dest = join(steveDir, file);
+    if (existsSync(src) && !existsSync(dest)) {
+      cpSync(src, dest);
+      copied.push(file);
+    }
   }
 
   // Skills
