@@ -1,0 +1,56 @@
+import { readFileSync, existsSync } from "node:fs";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { homedir } from "node:os";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(__dirname, "..");
+const steveDir = join(homedir(), ".steve");
+const configPath = join(steveDir, "config.json");
+
+interface SteveConfig {
+  telegram: {
+    botToken: string | undefined;
+    allowedUserIds: number[];
+  };
+  claude: {
+    model: string;
+  };
+  projectRoot: string;
+  steveDir: string;
+  dataDir: string;
+  memoryDir: string;
+  skillsDir: string;
+  defaultSkillsDir: string;
+}
+
+function loadConfig(): SteveConfig {
+  let fileConfig: Record<string, any> = {};
+
+  if (existsSync(configPath)) {
+    try {
+      fileConfig = JSON.parse(readFileSync(configPath, "utf-8"));
+    } catch {
+      // Corrupt config, will use defaults
+    }
+  }
+
+  return Object.freeze({
+    telegram: {
+      botToken: fileConfig.telegram_bot_token || undefined,
+      allowedUserIds: (fileConfig.allowed_user_ids || []) as number[],
+    },
+    claude: {
+      model: fileConfig.model || "sonnet",
+    },
+    projectRoot,
+    steveDir,
+    dataDir: steveDir,
+    memoryDir: join(steveDir, "memory"),
+    skillsDir: join(steveDir, "skills"),
+    defaultSkillsDir: join(projectRoot, "skills"),
+  });
+}
+
+export const config = loadConfig();
+export { configPath, steveDir };
