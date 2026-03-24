@@ -29,7 +29,7 @@ interface LoadedSkill {
   missing: string[];
 }
 
-const MAX_HISTORY = 20;
+const MAX_HISTORY = 10;
 const HISTORY_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 function loadPersona(): string {
@@ -261,7 +261,7 @@ export class Brain {
         "--permission-mode", "bypassPermissions",
         "--add-dir", config.dataDir,
         "--allowedTools",
-          "Read", "Write", "Edit", "Glob", "Grep",
+          "Read", "Write", "Edit", "Glob", "Grep", "WebSearch", "WebFetch",
           `Bash(${config.skillsDir}/*/scripts/*:*)`,
           `Bash(${config.projectRoot}/scripts/credential.sh:*)`,
       ];
