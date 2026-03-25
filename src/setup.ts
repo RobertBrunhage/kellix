@@ -159,6 +159,7 @@ tools:
     "tmp/\nsessions.json\n",
     "utf-8",
   );
+
 }
 
 function initGitRepo(): boolean {
@@ -371,6 +372,14 @@ export async function runSetup(): Promise<SetupResult> {
   createDirectories();
   syncDefaults(users);
   generateRuntimeConfig(botToken, users, model);
+
+  // Write user manifest for the launch script (host needs to know users for compose generation)
+  const userList = [...new Set(Object.values(users).map((n) => n.toLowerCase()))];
+  writeFileSync(
+    join(steveDir, "users.json"),
+    JSON.stringify({ users: userList }, null, 2),
+    "utf-8",
+  );
 
   // Git setup (skip in Docker)
   if (!config.isDocker) {

@@ -84,13 +84,14 @@ export function renderHome(health: HealthStatus, keys: string[], fieldCounts?: R
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-8">
+      ${Object.entries(c.opencode).map(([name, oc]) => `
       <div class="bg-surface-card border border-border rounded-lg p-4">
         <div class="flex items-center gap-2 mb-1">
-          ${dot(c.opencode.status)}
-          <span class="text-xs text-zinc-400">OpenCode</span>
+          ${dot(oc.status)}
+          <span class="text-xs text-zinc-400">OpenCode (${escapeHtml(name)})</span>
         </div>
-        <p class="text-sm text-white">${c.opencode.status === "ok" ? "Connected" : escapeHtml(c.opencode.message || "Error")}</p>
-      </div>
+        <p class="text-sm text-white">${oc.status === "ok" ? "Connected" : escapeHtml(oc.message || "Error")}</p>
+      </div>`).join("")}
 
       <div class="bg-surface-card border border-border rounded-lg p-4">
         <div class="flex items-center gap-2 mb-1">

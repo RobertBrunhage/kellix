@@ -12,23 +12,11 @@ services:
       - steve-vault:/vault
     environment:
       - STEVE_DOCKER=1
-      - OPENCODE_URL=http://opencode:3456
       - STEVE_VAULT_KEY=${STEVE_VAULT_KEY:-}
       - STEVE_HOST_IP=${STEVE_HOST_IP:-localhost}
     cap_drop:
       - NET_RAW
       - NET_ADMIN
-    networks: [steve-net]
-
-  opencode:
-    image: ghcr.io/anomalyco/opencode:latest
-    container_name: opencode
-    restart: unless-stopped
-    command: ["serve", "--port", "3456", "--hostname", "0.0.0.0"]
-    working_dir: /data
-    volumes:
-      - ${STEVE_DATA:-~/.steve}:/data
-      - opencode-auth:/root/.local/share/opencode
     networks: [steve-net]
 
 volumes:

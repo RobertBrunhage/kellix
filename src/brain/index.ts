@@ -6,19 +6,25 @@ import { config, getUserDir, getRuntime } from "../config.js";
 
 const sessions: Map<string, string> = new Map();
 const queues: Map<string, Promise<void>> = new Map();
+const clients: Map<string, OpencodeClient> = new Map();
 
-let client: OpencodeClient | null = null;
 const SESSION_FILE = join(config.dataDir, "sessions.json");
 const RESET_HOUR = 4; // Reset sessions daily at 4am
 
-function getClient(): OpencodeClient {
-  if (!client) {
-    client = createOpencodeClient({
-      baseUrl: config.opencodeUrl,
-      directory: config.dataDir,
-    });
+function getClientForUser(userName: string): OpencodeClient {
+  const name = userName.toLowerCase();
+  if (!clients.has(name)) {
+    // In Docker: per-user container. Locally: shared instance.
+    const baseUrl = config.isDocker
+      ? `http://opencode-${name}:3456`
+      : config.opencodeUrl;
+
+    clients.set(name, createOpencodeClient({
+      baseUrl,
+      directory: "/data",
+    }));
   }
-  return client;
+  return clients.get(name)!;
 }
 
 function loadSessions() {
@@ -96,11 +102,11 @@ export class Brain {
     try {
       p.log.step(`${userName} → thinking...`);
 
-      const oc = getClient();
+      const oc = getClientForUser(userName);
+      const userDir = config.isDocker ? "/data" : getUserDir(userName);
       let sessionId = sessions.get(userName);
 
       // Create session if needed
-      const userDir = getUserDir(userName);
       if (!sessionId) {
         const res = await oc.session.create({
           body: { title: `Steve - ${userName}` },
@@ -175,8 +181,8 @@ export class Brain {
     userName: string,
   ): Promise<void> {
     try {
-      const oc = getClient();
-      const userDir = getUserDir(userName);
+      const oc = getClientForUser(userName);
+      const userDir = config.isDocker ? "/data" : getUserDir(userName);
 
       const session = await oc.session.create({
         body: { title: `Steve - ${userName} (isolated)` },

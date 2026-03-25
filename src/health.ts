@@ -4,7 +4,7 @@ export interface HealthStatus {
   healthy: boolean;
   uptime: number;
   components: {
-    opencode: { status: "ok" | "error"; message?: string };
+    opencode: Record<string, { status: "ok" | "error"; message?: string }>;
     telegram: { status: "ok" | "error" | "not_configured"; message?: string };
     vault: { status: "ok" | "not_configured"; secrets: number };
     scheduler: { status: "ok"; reminders: number };
@@ -20,14 +20,29 @@ export function setReminderCount(count: number) { reminderCount = count; }
 export function setTelegramConnected(connected: boolean) { telegramConnected = connected; }
 export function setVaultSecretCount(count: number) { vaultSecretCount = count; }
 
-export async function getHealth(): Promise<HealthStatus> {
-  // Check OpenCode
-  let opencode: HealthStatus["components"]["opencode"];
+async function checkOpenCode(userName: string): Promise<{ status: "ok" | "error"; message?: string }> {
+  const url = config.isDocker
+    ? `http://opencode-${userName.toLowerCase()}:3456`
+    : config.opencodeUrl;
   try {
-    const res = await fetch(config.opencodeUrl, { signal: AbortSignal.timeout(3000) });
-    opencode = res.ok ? { status: "ok" } : { status: "error", message: `HTTP ${res.status}` };
+    const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
+    return res.ok ? { status: "ok" } : { status: "error", message: `HTTP ${res.status}` };
   } catch (err) {
-    opencode = { status: "error", message: err instanceof Error ? err.message : "unreachable" };
+    return { status: "error", message: err instanceof Error ? err.message : "unreachable" };
+  }
+}
+
+export async function getHealth(): Promise<HealthStatus> {
+  // Check OpenCode per-user
+  const opencode: Record<string, { status: "ok" | "error"; message?: string }> = {};
+  try {
+    const rt = getRuntime();
+    const userNames = [...new Set(Object.values(rt.users))];
+    await Promise.all(userNames.map(async (name) => {
+      opencode[name.toLowerCase()] = await checkOpenCode(name);
+    }));
+  } catch {
+    opencode["default"] = { status: "error", message: "runtime not initialized" };
   }
 
   let hasBotToken = false;
@@ -42,7 +57,8 @@ export async function getHealth(): Promise<HealthStatus> {
 
   const scheduler: HealthStatus["components"]["scheduler"] = { status: "ok", reminders: reminderCount };
 
-  const healthy = opencode.status === "ok" && telegram.status === "ok";
+  const allOcOk = Object.values(opencode).every((o) => o.status === "ok");
+  const healthy = allOcOk && telegram.status === "ok";
 
   return {
     healthy,
