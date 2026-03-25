@@ -1,52 +1,17 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { readFileSync, existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import { join, resolve, normalize, basename, dirname } from "node:path";
 import { execFile } from "node:child_process";
 import { z } from "zod";
 import type { Vault } from "../vault/index.js";
+import type { Channel } from "../channels/index.js";
+import { loadUserJobs, saveUserJobs, type Job } from "../scheduler.js";
 
 interface McpConfig {
-  botToken: string;
-  users: Record<string, string>;
+  channel: Channel;
   projectRoot: string;
   dataDir: string;
   secretManagerUrl: string;
-}
-
-function getChatId(users: Record<string, string>, userName: string): string | null {
-  for (const [id, name] of Object.entries(users)) {
-    if (name.toLowerCase() === userName.toLowerCase()) return id;
-  }
-  return null;
-}
-
-async function sendTelegram(
-  botToken: string,
-  chatId: string,
-  text: string,
-): Promise<{ ok: boolean; description?: string }> {
-  let res = await fetch(
-    `https://api.telegram.org/bot${botToken}/sendMessage`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text, parse_mode: "HTML" }),
-    },
-  );
-
-  if (!res.ok) {
-    res = await fetch(
-      `https://api.telegram.org/bot${botToken}/sendMessage`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ chat_id: chatId, text }),
-      },
-    );
-  }
-
-  return res.json();
 }
 
 /** Snapshot project scripts at startup (immutable, security-critical) */
@@ -66,14 +31,24 @@ function discoverProjectScripts(projectRoot: string): Set<string> {
 /** Check if a script is inside a skill's scripts/ directory (dynamic, allows new skills) */
 function isSkillScript(scriptPath: string, dataDir: string): boolean {
   const resolved = resolve(scriptPath);
+
+  // Check under users/*/skills/*/scripts/*.sh (per-user workspaces)
+  const usersDir = resolve(join(dataDir, "users"));
+  if (resolved.startsWith(usersDir + "/")) {
+    const relative = resolved.slice(usersDir.length + 1); // e.g. "robert/skills/withings/scripts/fetch.sh"
+    const parts = relative.split("/");
+    return parts.length === 5 && parts[1] === "skills" && parts[3] === "scripts" && parts[4].endsWith(".sh");
+  }
+
+  // Legacy: check under skills/*/scripts/*.sh (flat structure)
   const skillsDir = resolve(join(dataDir, "skills"));
+  if (resolved.startsWith(skillsDir + "/")) {
+    const relative = resolved.slice(skillsDir.length + 1);
+    const parts = relative.split("/");
+    return parts.length === 3 && parts[1] === "scripts" && parts[2].endsWith(".sh");
+  }
 
-  // Must be under skills/*/scripts/*.sh
-  if (!resolved.startsWith(skillsDir + "/")) return false;
-
-  const relative = resolved.slice(skillsDir.length + 1); // e.g. "withings/scripts/fetch.sh"
-  const parts = relative.split("/");
-  return parts.length === 3 && parts[1] === "scripts" && parts[2].endsWith(".sh");
+  return false;
 }
 
 /** Extract skill name from a script path like skills/withings/scripts/fetch.sh → withings */
@@ -107,11 +82,11 @@ function buildCredEnv(vault: Vault | null, userName: string, skill: string | nul
 }
 
 export function createMcpServer(mcpConfig: McpConfig, vault: Vault | null): McpServer {
-  const { botToken, users, projectRoot, dataDir } = mcpConfig;
+  const { channel, projectRoot, dataDir } = mcpConfig;
   const projectScripts = discoverProjectScripts(projectRoot);
 
   const server = new McpServer({
-    name: "steve-telegram",
+    name: "steve",
     version: "1.0.0",
   });
 
@@ -120,26 +95,14 @@ export function createMcpServer(mcpConfig: McpConfig, vault: Vault | null): McpS
       "Send a message to a user on Telegram. Use this to respond to users.",
     inputSchema: {
       userName: z.string().describe("The name of the user to send the message to"),
-      message: z.string().describe("The message text to send (supports Markdown)"),
+      message: z.string().describe("The message text to send (supports HTML)"),
+      buttons: z.array(z.array(z.string())).optional().describe("Optional inline button rows, e.g. [['Yes','No']]"),
     },
-  }, async ({ userName, message }) => {
-    const chatId = getChatId(users, userName);
-    if (!chatId) {
-      return {
-        content: [{ type: "text", text: `Error: Unknown user "${userName}"` }],
-        isError: true,
-      };
-    }
-
-    const result = await sendTelegram(botToken, chatId, message);
+  }, async ({ userName, message, buttons }) => {
+    const result = await channel.sendMessage(userName, message, buttons ? { buttons } : undefined);
     if (!result.ok) {
       return {
-        content: [
-          {
-            type: "text",
-            text: `Error: Telegram API returned: ${result.description || "unknown error"}`,
-          },
-        ],
+        content: [{ type: "text", text: `Error: ${result.error || "unknown error"}` }],
         isError: true,
       };
     }
@@ -147,6 +110,64 @@ export function createMcpServer(mcpConfig: McpConfig, vault: Vault | null): McpS
     return {
       content: [{ type: "text", text: `Message sent to ${userName}` }],
     };
+  });
+
+  server.registerTool("session_status", {
+    description:
+      "Get the current time, timezone, and session info. Use this when you need to know the current time or date for scheduling, reminders, or time-based decisions.",
+    inputSchema: {},
+  }, async () => {
+    const now = new Date();
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    return {
+      content: [{ type: "text", text: JSON.stringify({
+        time: now.toISOString(),
+        localTime: now.toLocaleString("en-SE", { timeZone: tz }),
+        timezone: tz,
+        dayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
+      }) }],
+    };
+  });
+
+  server.registerTool("manage_jobs", {
+    description:
+      "Manage scheduled reminders and jobs for a user. Use 'list' to see jobs, 'add' to create, 'remove' to delete by id.",
+    inputSchema: {
+      action: z.enum(["list", "add", "remove"]).describe("The action to perform"),
+      userName: z.string().describe("The user name"),
+      job: z.object({
+        id: z.string(),
+        name: z.string(),
+        prompt: z.string(),
+        cron: z.string().optional(),
+        at: z.string().optional(),
+        timezone: z.string().optional(),
+      }).optional().describe("Job to add (required for 'add' action)"),
+      id: z.string().optional().describe("Job id to remove (required for 'remove' action)"),
+    },
+  }, async ({ action, userName, job, id }) => {
+    const user = userName.toLowerCase();
+
+    if (action === "list") {
+      const jobs = loadUserJobs(user);
+      return { content: [{ type: "text", text: JSON.stringify(jobs, null, 2) }] };
+    }
+
+    if (action === "add" && job) {
+      const jobs = loadUserJobs(user);
+      jobs.push(job);
+      saveUserJobs(user, jobs);
+      return { content: [{ type: "text", text: `Job "${job.name}" added` }] };
+    }
+
+    if (action === "remove" && id) {
+      const jobs = loadUserJobs(user);
+      const filtered = jobs.filter((j) => j.id !== id);
+      saveUserJobs(user, filtered);
+      return { content: [{ type: "text", text: filtered.length < jobs.length ? `Job "${id}" removed` : `Job "${id}" not found` }] };
+    }
+
+    return { content: [{ type: "text", text: "Invalid action or missing parameters" }], isError: true };
   });
 
   server.registerTool("get_secret_manager_url", {
@@ -221,22 +242,3 @@ export function createMcpServer(mcpConfig: McpConfig, vault: Vault | null): McpS
   return server;
 }
 
-// Standalone stdio mode: only when this file is the entry point (not imported)
-// This runs when opencode spawns the MCP server directly via opencode.json "type": "local"
-// In Docker and new local mode, the MCP server is started embedded from index.ts
-if (process.env.STEVE_MCP_STANDALONE === "1") {
-  const configPath = join(process.cwd(), "config.json");
-  const fileConfig = JSON.parse(readFileSync(configPath, "utf-8"));
-
-  const mcpConfig: McpConfig = {
-    botToken: fileConfig.telegram_bot_token,
-    users: fileConfig.users,
-    projectRoot: process.env.STEVE_PROJECT_ROOT || "",
-    dataDir: process.cwd(),
-    secretManagerUrl: fileConfig.secret_manager_url || "http://localhost:3000",
-  };
-
-  const server = createMcpServer(mcpConfig, null);
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-}

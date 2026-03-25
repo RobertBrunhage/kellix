@@ -2,7 +2,7 @@ import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { Bot, Context } from "grammy";
 import type { Brain } from "../brain/index.js";
-import { config } from "../config.js";
+import { config, getRuntime } from "../config.js";
 import { getUserName } from "./commands.js";
 
 const tmpDir = join(config.dataDir, "tmp");
@@ -15,7 +15,7 @@ async function downloadPhoto(ctx: Context): Promise<string | null> {
   const file = await ctx.api.getFile(largest.file_id);
   if (!file.file_path) return null;
 
-  const url = `https://api.telegram.org/file/bot${config.telegram.botToken}/${file.file_path}`;
+  const url = `https://api.telegram.org/file/bot${getRuntime().botToken}/${file.file_path}`;
   const response = await fetch(url);
   if (!response.ok) return null;
 
@@ -57,6 +57,14 @@ export function registerMessageHandler(
 ): void {
   bot.on("message:text", async (ctx) => {
     await handleBrainMessage(ctx, brain, ctx.message.text);
+  });
+
+  // Inline button callbacks
+  bot.on("callback_query:data", async (ctx) => {
+    const userName = getUserName(ctx.from.id);
+    const data = ctx.callbackQuery.data;
+    await ctx.answerCallbackQuery();
+    await handleBrainMessage(ctx, brain, data);
   });
 
   bot.on("message:photo", async (ctx) => {

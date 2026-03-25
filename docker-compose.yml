@@ -15,6 +15,9 @@ services:
       - OPENCODE_URL=http://opencode:3456
       - STEVE_VAULT_KEY=${STEVE_VAULT_KEY:-}
       - STEVE_HOST_IP=${STEVE_HOST_IP:-localhost}
+    cap_drop:
+      - NET_RAW
+      - NET_ADMIN
     networks: [steve-net]
 
   opencode:

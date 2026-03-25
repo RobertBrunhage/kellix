@@ -1,176 +1,194 @@
-import { readdirSync, readFileSync, unlinkSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { CronJob } from "cron";
-import matter from "gray-matter";
 import * as p from "@clack/prompts";
 import type { Brain } from "./brain/index.js";
 import { config } from "./config.js";
+import { setReminderCount } from "./health.js";
 
-interface CronReminder {
-  kind: "cron";
-  file: string;
-  userName: string;
+export interface Job {
+  id: string;
   name: string;
-  cron: string;
   prompt: string;
+  cron?: string;
+  at?: string;
+  timezone?: string;
 }
 
-interface OneOffReminder {
-  kind: "at";
-  file: string;
+interface UserJobs {
   userName: string;
-  name: string;
-  at: Date;
-  prompt: string;
+  jobs: Job[];
 }
-
-type Reminder = CronReminder | OneOffReminder;
 
 const activeJobs: Map<string, CronJob> = new Map();
 const firedOneOffs: Set<string> = new Set();
+const MAX_RETRIES = 3;
 
-function loadReminders(): Reminder[] {
-  const reminders: Reminder[] = [];
-  const memDir = config.memoryDir;
+/** Get the jobs.json path for a specific user */
+export function getUserJobsPath(userName: string): string {
+  return join(config.usersDir, userName.toLowerCase(), "jobs.json");
+}
 
-  let users: string[];
+/** Load jobs for a single user */
+export function loadUserJobs(userName: string): Job[] {
+  const path = getUserJobsPath(userName);
   try {
-    users = readdirSync(memDir);
-  } catch {
-    return [];
-  }
-
-  for (const userName of users) {
-    const reminderDir = join(memDir, userName, "reminders");
-    let files: string[];
-    try {
-      files = readdirSync(reminderDir).filter((f) => f.endsWith(".md"));
-    } catch {
-      continue;
+    if (existsSync(path)) {
+      const data = JSON.parse(readFileSync(path, "utf-8"));
+      return data.jobs || [];
     }
+  } catch {}
+  return [];
+}
 
-    for (const file of files) {
-      try {
-        const raw = readFileSync(join(reminderDir, file), "utf-8");
-        const { data } = matter(raw);
-        if (!data.prompt) continue;
+/** Save jobs for a single user */
+export function saveUserJobs(userName: string, jobs: Job[]) {
+  writeFileSync(getUserJobsPath(userName), JSON.stringify({ jobs }, null, 2), "utf-8");
+}
 
-        const filePath = join(reminderDir, file);
+/** Load jobs across all users */
+function loadAllJobs(): UserJobs[] {
+  const result: UserJobs[] = [];
+  try {
+    for (const userDirName of readdirSync(config.usersDir)) {
+      if (userDirName.startsWith(".")) continue;
+      const jobs = loadUserJobs(userDirName);
+      if (jobs.length > 0) {
+        result.push({ userName: userDirName, jobs });
+      }
+    }
+  } catch {}
+  return result;
+}
 
-        if (data.cron) {
-          reminders.push({
-            kind: "cron",
-            file: filePath,
-            userName,
-            name: data.name || file,
-            cron: data.cron,
-            prompt: data.prompt,
-          });
-        } else if (data.at) {
-          const at = new Date(data.at);
-          if (!isNaN(at.getTime())) {
-            reminders.push({
-              kind: "at",
-              file: filePath,
-              userName,
-              name: data.name || file,
-              at,
-              prompt: data.prompt,
-            });
-          }
-        }
-      } catch {
-        // Skip unparseable reminder files
+/** Find users who have a HEARTBEAT.md file */
+function loadHeartbeatUsers(): string[] {
+  const users: string[] = [];
+  try {
+    for (const userDirName of readdirSync(config.usersDir)) {
+      if (userDirName.startsWith(".")) continue;
+      if (existsSync(join(config.usersDir, userDirName, "HEARTBEAT.md"))) {
+        users.push(userDirName);
+      }
+    }
+  } catch {}
+  return users;
+}
+
+async function fireJob(userName: string, job: Job, brain: Brain) {
+  p.log.step(`Job: "${job.name}" → ${userName}`);
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      await brain.thinkIsolated(`REMINDER: ${job.prompt}`, userName);
+      break;
+    } catch (err) {
+      if (attempt < MAX_RETRIES) {
+        const delay = 1000 * Math.pow(2, attempt - 1);
+        p.log.warn(`Job "${job.name}" failed (attempt ${attempt}), retrying in ${delay}ms`);
+        await new Promise((r) => setTimeout(r, delay));
+      } else {
+        p.log.error(`Job "${job.name}" failed after ${MAX_RETRIES} attempts`);
       }
     }
   }
 
-  return reminders;
-}
-
-async function fireReminder(reminder: Reminder, brain: Brain) {
-  p.log.step(`Reminder: "${reminder.name}" → ${reminder.userName}`);
-
-  await brain.think(`REMINDER: ${reminder.prompt}`, reminder.userName);
-
-  // Delete one-off reminders after firing
-  if (reminder.kind === "at") {
-    try {
-      unlinkSync(reminder.file);
-    } catch {
-      // Non-critical: file may already be deleted
-    }
+  // Delete one-off jobs after firing
+  if (job.at) {
+    const jobs = loadUserJobs(userName).filter((j) => j.id !== job.id);
+    saveUserJobs(userName, jobs);
   }
 }
 
-function checkOneOffs(reminders: OneOffReminder[], brain: Brain) {
-  const now = Date.now();
+async function fireHeartbeat(userName: string, brain: Brain) {
+  p.log.step(`Heartbeat → ${userName}`);
+  try {
+    await brain.thinkIsolated("HEARTBEAT: Check your HEARTBEAT.md checklist. Only message the user if something needs attention.", userName);
+  } catch {
+    p.log.warn(`Heartbeat failed for ${userName}`);
+  }
+}
 
-  for (const reminder of reminders) {
-    if (firedOneOffs.has(reminder.file)) continue;
-    if (reminder.at.getTime() <= now) {
-      firedOneOffs.add(reminder.file);
-      fireReminder(reminder, brain);
+function checkOneOffs(allUserJobs: UserJobs[], brain: Brain) {
+  const now = Date.now();
+  for (const { userName, jobs } of allUserJobs) {
+    for (const job of jobs) {
+      if (!job.at) continue;
+      const key = `${userName}:${job.id}`;
+      if (firedOneOffs.has(key)) continue;
+      const at = new Date(job.at).getTime();
+      if (!isNaN(at) && at <= now) {
+        firedOneOffs.add(key);
+        fireJob(userName, job, brain);
+      }
     }
   }
 }
 
 export function startScheduler(brain: Brain) {
-  let oneOffs: OneOffReminder[] = [];
   let lastFingerprint = "";
 
-  function syncReminders(initial = false) {
-    const reminders = loadReminders();
+  function sync(initial = false) {
+    const allUserJobs = loadAllJobs();
 
-    // Build a fingerprint to detect changes
-    const fingerprint = reminders
-      .map((r) => `${r.file}:${r.kind === "cron" ? r.cron : r.at}`)
+    const fingerprint = allUserJobs
+      .flatMap(({ userName, jobs }) => jobs.map((j) => `${userName}:${j.id}:${j.cron || j.at}`))
       .sort()
       .join("|");
 
     if (fingerprint === lastFingerprint && !initial) {
-      // Nothing changed, just check one-offs
-      checkOneOffs(oneOffs, brain);
+      checkOneOffs(allUserJobs, brain);
       return;
     }
     lastFingerprint = fingerprint;
 
-    // Stop all existing cron jobs
+    // Stop all existing jobs
     for (const [, job] of activeJobs) {
       job.stop();
     }
     activeJobs.clear();
-    oneOffs = [];
 
-    for (const reminder of reminders) {
-      if (reminder.kind === "cron") {
-        try {
-          const job = CronJob.from({
-            cronTime: reminder.cron,
-            onTick: () => fireReminder(reminder, brain),
-            start: true,
-          });
-          activeJobs.set(reminder.file, job);
-          p.log.info(`Scheduled "${reminder.name}" for ${reminder.userName}`);
-        } catch {
-          p.log.warn(`Invalid cron "${reminder.cron}" in ${reminder.file}`);
+    for (const { userName, jobs } of allUserJobs) {
+      for (const job of jobs) {
+        if (job.cron) {
+          try {
+            const cronJob = CronJob.from({
+              cronTime: job.cron,
+              onTick: () => fireJob(userName, job, brain),
+              start: true,
+              timeZone: job.timezone,
+            });
+            activeJobs.set(`${userName}:${job.id}`, cronJob);
+            p.log.info(`Scheduled "${job.name}" for ${userName}`);
+          } catch {
+            p.log.warn(`Invalid cron "${job.cron}" for ${userName}/${job.id}`);
+          }
         }
-      } else {
-        oneOffs.push(reminder);
       }
     }
 
-    const total = activeJobs.size + oneOffs.length;
-    if (total > 0) {
-      p.log.info(`${total} reminder${total === 1 ? "" : "s"} loaded`);
+    // Heartbeats
+    const heartbeatUsers = loadHeartbeatUsers();
+    for (const userName of heartbeatUsers) {
+      const hbJob = CronJob.from({
+        cronTime: "*/30 8-21 * * *",
+        onTick: () => fireHeartbeat(userName, brain),
+        start: true,
+      });
+      activeJobs.set(`heartbeat:${userName}`, hbJob);
+    }
+    if (heartbeatUsers.length > 0) {
+      p.log.info(`Heartbeat active for ${heartbeatUsers.join(", ")}`);
+    }
+
+    const totalJobs = allUserJobs.reduce((n, u) => n + u.jobs.length, 0);
+    const total = activeJobs.size + allUserJobs.reduce((n, u) => n + u.jobs.filter((j) => j.at).length, 0);
+    setReminderCount(total);
+    if (totalJobs > 0) {
+      p.log.info(`${totalJobs} job${totalJobs === 1 ? "" : "s"} loaded`);
     }
   }
 
-  // Initial sync
-  syncReminders(true);
-
-  // Check every 30 seconds
-  setInterval(() => {
-    syncReminders();
-  }, 30_000);
+  sync(true);
+  setInterval(() => sync(), 30_000);
 }

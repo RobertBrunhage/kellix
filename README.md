@@ -68,23 +68,23 @@ The AI never sees your secrets. When a skill needs credentials (e.g., Withings A
 
 ## Data Directory
 
-`~/.steve/` is pure user data. No logic, no secrets, no config.
+`~/.steve/` is pure user data. Each user gets an isolated workspace.
 
 ```
 ~/.steve/
-  SOUL.md                     # Personality (edit anytime)
-  AGENTS.md                   # Operating instructions (edit anytime)
-  skills/                     # Skills (synced from defaults on boot)
-    training-coach/SKILL.md
-    training-coach/templates/   # File templates for consistent formats
-    reminders/SKILL.md
-    withings/SKILL.md
-  memory/
-    {user}/                   # Per-user memories, logs, schedules
-    shared/                   # Household-wide memories
+  users/
+    robert/                   # Robert's workspace (OpenCode working dir)
+      SOUL.md                 # Personality
+      AGENTS.md               # Operating instructions
+      skills/                 # Skills (synced from defaults on boot)
+      memory/                 # Memories, logs, schedules
+      reminders/              # Scheduled reminders
+      shared/ -> ../../shared # Symlink to shared dir
+    vanessa/                  # Vanessa's workspace (same structure)
+  shared/                     # Household-wide memories
 ```
 
-Runtime config (`opencode.json`, `.opencode/`, `config.json`) is generated on every boot and gitignored.
+Runtime config (`opencode.json`, `.opencode/`) is generated per-user on every boot and gitignored.
 
 ## Skills
 
@@ -129,6 +129,7 @@ All secrets live in an encrypted vault (AES-256-GCM). Manage them at `http://loc
 
 ```bash
 pnpm launch           # Start with Docker (recommended)
+pnpm doctor           # Check if everything is configured correctly
 pnpm dev              # Run locally without Docker (requires opencode installed)
 pnpm build            # TypeScript build
 pnpm test             # Run tests

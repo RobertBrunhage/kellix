@@ -1,10 +1,10 @@
 import type { Bot } from "grammy";
 import type { Brain } from "../brain/index.js";
-import { config } from "../config.js";
+import { getRuntime } from "../config.js";
 import { handleBrainMessage } from "./message-handler.js";
 
 export function getUserName(telegramId: number): string {
-  return config.telegram.users[String(telegramId)] || "User";
+  return getRuntime().users[String(telegramId)] || "User";
 }
 
 export function registerCommands(
@@ -14,7 +14,7 @@ export function registerCommands(
   // Security: only allow configured users
   bot.use(async (ctx, next) => {
     const userId = ctx.from?.id;
-    if (!userId || !config.telegram.allowedUserIds.includes(userId)) {
+    if (!userId || !getRuntime().allowedUserIds.includes(userId)) {
       return;
     }
     await next();

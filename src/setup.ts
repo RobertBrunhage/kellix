@@ -5,9 +5,11 @@ import {
   readFileSync,
   readdirSync,
   cpSync,
+  symlinkSync,
 } from "node:fs";
 import { join } from "node:path";
 import { execSync } from "node:child_process";
+import { networkInterfaces } from "node:os";
 import * as p from "@clack/prompts";
 import { steveDir, config } from "./config.js";
 import { Vault } from "./vault/index.js";
@@ -45,37 +47,52 @@ function hasGitRemote(): boolean {
 
 function createDirectories() {
   mkdirSync(steveDir, { recursive: true });
-  mkdirSync(config.memoryDir, { recursive: true });
-  mkdirSync(join(config.memoryDir, "shared"), { recursive: true });
+  mkdirSync(config.usersDir, { recursive: true });
+  mkdirSync(config.sharedDir, { recursive: true });
 }
 
-function syncDefaults() {
-  // Always overwrite project-controlled files
+/** Create per-user workspace with SOUL.md, AGENTS.md, skills/, memory/, reminders/ */
+function setupUserWorkspace(userName: string) {
+  const userDir = join(config.usersDir, userName.toLowerCase());
+  mkdirSync(join(userDir, "memory"), { recursive: true });
+
+  // Sync project-controlled files into user workspace
   for (const file of ["SOUL.md", "AGENTS.md"]) {
     const src = join(config.defaultsDir, file);
-    const dest = join(steveDir, file);
     if (existsSync(src)) {
-      cpSync(src, dest);
+      cpSync(src, join(userDir, file));
     }
   }
 
-  // Always overwrite default skills (but leave user-created skills untouched)
-  const src = config.defaultSkillsDir;
-  const dest = config.skillsDir;
-  mkdirSync(dest, { recursive: true });
-
-  if (existsSync(src)) {
-    for (const entry of readdirSync(src)) {
-      const srcEntry = join(src, entry);
-      const destEntry = join(dest, entry);
-      cpSync(srcEntry, destEntry, { recursive: true });
+  // Sync skills
+  const skillsSrc = config.defaultSkillsDir;
+  const skillsDest = join(userDir, "skills");
+  mkdirSync(skillsDest, { recursive: true });
+  if (existsSync(skillsSrc)) {
+    for (const entry of readdirSync(skillsSrc)) {
+      cpSync(join(skillsSrc, entry), join(skillsDest, entry), { recursive: true });
     }
+  }
+
+  // Symlink shared directory if not already present
+  const sharedLink = join(userDir, "shared");
+  if (!existsSync(sharedLink)) {
+    try {
+      symlinkSync(config.sharedDir, sharedLink, "dir");
+    } catch {
+      // Symlinks may fail in some environments, copy instead
+    }
+  }
+}
+
+function syncDefaults(users: Record<string, string>) {
+  for (const userName of Object.values(users)) {
+    setupUserWorkspace(userName);
   }
 }
 
 function getLocalIp(): string {
   try {
-    const { networkInterfaces } = require("os") as typeof import("os");
     const nets = networkInterfaces();
     for (const iface of Object.values(nets)) {
       for (const net of iface || []) {
@@ -91,14 +108,7 @@ function generateRuntimeConfig(botToken: string, users: Record<string, string>, 
   const hostIp = getLocalIp();
   const secretManagerUrl = `http://${hostIp}:${config.webPort}`;
 
-  // config.json - opencode and steve both read this
-  writeFileSync(
-    join(steveDir, "config.json"),
-    JSON.stringify({ telegram_bot_token: botToken, users, model, secret_manager_url: secretManagerUrl }, null, 2),
-    "utf-8",
-  );
-
-  // opencode.json - MCP server config (always remote, steve hosts the MCP HTTP server)
+  // Per-user opencode configs
   const mcpHost = config.isDocker ? "steve" : "localhost";
   const mcpConfig = {
     type: "remote" as const,
@@ -106,21 +116,12 @@ function generateRuntimeConfig(botToken: string, users: Record<string, string>, 
     enabled: true,
   };
 
-  writeFileSync(
-    join(steveDir, "opencode.json"),
-    JSON.stringify({
-      $schema: "https://opencode.ai/config.json",
-      mcp: { telegram: mcpConfig },
-    }, null, 2),
-    "utf-8",
-  );
+  const opencodeJson = JSON.stringify({
+    $schema: "https://opencode.ai/config.json",
+    mcp: { telegram: mcpConfig },
+  }, null, 2);
 
-  // .opencode/agents/steve.md - agent tool permissions
-  const agentDir = join(steveDir, ".opencode", "agents");
-  mkdirSync(agentDir, { recursive: true });
-  writeFileSync(
-    join(agentDir, "steve.md"),
-    `---
+  const agentMd = `---
 description: >-
   Steve is a personal household assistant. Use this agent for all conversations.
 mode: primary
@@ -132,14 +133,32 @@ tools:
   skill: false
   bash: ${config.isDocker}
 ---
-`,
+`;
+
+  for (const userName of Object.values(users)) {
+    const userDir = join(config.usersDir, userName.toLowerCase());
+    mkdirSync(userDir, { recursive: true });
+
+    writeFileSync(join(userDir, "opencode.json"), opencodeJson, "utf-8");
+
+    const agentDir = join(userDir, ".opencode", "agents");
+    mkdirSync(agentDir, { recursive: true });
+    writeFileSync(join(agentDir, "steve.md"), agentMd, "utf-8");
+
+    // Per-user .gitignore
+    writeFileSync(
+      join(userDir, ".gitignore"),
+      "tmp/\nopencode.json\n.opencode/\nsessions.json\n",
+      "utf-8",
+    );
+  }
+
+  // Top-level gitignore
+  writeFileSync(
+    join(steveDir, ".gitignore"),
+    "tmp/\nsessions.json\n",
     "utf-8",
   );
-
-  // .gitignore for data dir - exclude generated files
-  const gitignorePath = join(steveDir, ".gitignore");
-  const gitignoreContent = "tmp/\nopencode.json\n.opencode/\nconfig.json\n";
-  writeFileSync(gitignorePath, gitignoreContent, "utf-8");
 }
 
 function initGitRepo(): boolean {
@@ -350,7 +369,7 @@ export async function runSetup(): Promise<SetupResult> {
 
   // Ensure directories, defaults, and runtime config on every boot
   createDirectories();
-  syncDefaults();
+  syncDefaults(users);
   generateRuntimeConfig(botToken, users, model);
 
   // Git setup (skip in Docker)

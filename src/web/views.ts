@@ -1,6 +1,23 @@
+import type { HealthStatus } from "../health.js";
+
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
+
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+
+const nav = `
+  <nav class="flex gap-4 mb-8 border-b border-border pb-4">
+    <a href="/" class="text-sm text-zinc-400 hover:text-white transition-colors">Dashboard</a>
+    <a href="/secrets/list" class="text-sm text-zinc-400 hover:text-white transition-colors">Secrets</a>
+  </nav>`;
 
 const layout = (title: string, body: string) => `<!DOCTYPE html>
 <html lang="en">
@@ -49,6 +66,61 @@ function fieldRows(fields: [string, string][]): string {
     </div>`).join("");
 }
 
+export function renderHome(health: HealthStatus, keys: string[], fieldCounts?: Record<string, string[]>): string {
+  const dot = (status: string) => {
+    const color = status === "ok" ? "bg-emerald-400" : status === "error" ? "bg-red-400" : "bg-zinc-500";
+    return `<span class="inline-block w-2 h-2 rounded-full ${color}"></span>`;
+  };
+
+  const { components: c, uptime, healthy } = health;
+
+  return layout("Dashboard", `
+    ${nav}
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-xl font-semibold text-white">Steve</h1>
+      <span class="text-xs px-2.5 py-1 rounded-full ${healthy ? "bg-emerald-950 text-emerald-300 border border-emerald-800" : "bg-red-950 text-red-300 border border-red-800"}">
+        ${healthy ? "Healthy" : "Degraded"}
+      </span>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-8">
+      <div class="bg-surface-card border border-border rounded-lg p-4">
+        <div class="flex items-center gap-2 mb-1">
+          ${dot(c.opencode.status)}
+          <span class="text-xs text-zinc-400">OpenCode</span>
+        </div>
+        <p class="text-sm text-white">${c.opencode.status === "ok" ? "Connected" : escapeHtml(c.opencode.message || "Error")}</p>
+      </div>
+
+      <div class="bg-surface-card border border-border rounded-lg p-4">
+        <div class="flex items-center gap-2 mb-1">
+          ${dot(c.telegram.status)}
+          <span class="text-xs text-zinc-400">Telegram</span>
+        </div>
+        <p class="text-sm text-white">${c.telegram.status === "ok" ? "Connected" : c.telegram.status === "not_configured" ? "Not configured" : escapeHtml(c.telegram.message || "Error")}</p>
+      </div>
+
+      <div class="bg-surface-card border border-border rounded-lg p-4">
+        <div class="flex items-center gap-2 mb-1">
+          ${dot(c.vault.status)}
+          <span class="text-xs text-zinc-400">Vault</span>
+        </div>
+        <p class="text-sm text-white">${c.vault.secrets} secret${c.vault.secrets === 1 ? "" : "s"}</p>
+      </div>
+
+      <div class="bg-surface-card border border-border rounded-lg p-4">
+        <div class="flex items-center gap-2 mb-1">
+          ${dot(c.scheduler.status)}
+          <span class="text-xs text-zinc-400">Scheduler</span>
+        </div>
+        <p class="text-sm text-white">${c.scheduler.reminders} reminder${c.scheduler.reminders === 1 ? "" : "s"}</p>
+      </div>
+    </div>
+
+    <div class="text-xs text-zinc-600 text-center">Uptime: ${formatUptime(uptime)}</div>
+  `);
+}
+
 export function renderDashboard(keys: string[], fieldCounts?: Record<string, string[]>, flashMsg?: string): string {
   const flashHtml = flashMsg ? flash(flashMsg) : "";
   const keysHtml = keys.length === 0
@@ -78,6 +150,7 @@ export function renderDashboard(keys: string[], fieldCounts?: Record<string, str
     }).join("");
 
   return layout("Secrets", `
+    ${nav}
     <div class="flex items-center justify-between mb-8">
       <h1 class="text-xl font-semibold text-white">Secrets</h1>
       <a href="/secrets/new"

@@ -1,11 +1,15 @@
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import * as p from "@clack/prompts";
 import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk/client";
-import { config } from "../config.js";
+import { config, getUserDir, getRuntime } from "../config.js";
 
 const sessions: Map<string, string> = new Map();
 const queues: Map<string, Promise<void>> = new Map();
 
 let client: OpencodeClient | null = null;
+const SESSION_FILE = join(config.dataDir, "sessions.json");
+const RESET_HOUR = 4; // Reset sessions daily at 4am
 
 function getClient(): OpencodeClient {
   if (!client) {
@@ -17,17 +21,50 @@ function getClient(): OpencodeClient {
   return client;
 }
 
+function loadSessions() {
+  try {
+    if (existsSync(SESSION_FILE)) {
+      const data = JSON.parse(readFileSync(SESSION_FILE, "utf-8"));
+      if (data.sessions && (!data.resetAfter || Date.now() < data.resetAfter)) {
+        for (const [k, v] of Object.entries(data.sessions)) {
+          sessions.set(k, v as string);
+        }
+        p.log.info(`Restored ${sessions.size} session(s)`);
+      }
+    }
+  } catch {}
+}
+
+function saveSessions() {
+  try {
+    const now = new Date();
+    const nextReset = new Date(now);
+    nextReset.setHours(RESET_HOUR, 0, 0, 0);
+    if (nextReset.getTime() <= now.getTime()) {
+      nextReset.setDate(nextReset.getDate() + 1);
+    }
+    writeFileSync(SESSION_FILE, JSON.stringify({
+      sessions: Object.fromEntries(sessions),
+      resetAfter: nextReset.getTime(),
+    }), "utf-8");
+  } catch {}
+}
+
+// Load persisted sessions on module init
+loadSessions();
+
 // Direct Telegram API call as fallback when opencode fails entirely
 async function sendFallback(userName: string, message: string) {
-  const chatId = Object.entries(config.telegram.users).find(
+  const rt = getRuntime();
+  const chatId = Object.entries(rt.users).find(
     ([, name]) => name.toLowerCase() === userName.toLowerCase(),
   )?.[0];
 
-  if (!chatId || !config.telegram.botToken) return;
+  if (!chatId || !rt.botToken) return;
 
   try {
     await fetch(
-      `https://api.telegram.org/bot${config.telegram.botToken}/sendMessage`,
+      `https://api.telegram.org/bot${rt.botToken}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -63,14 +100,16 @@ export class Brain {
       let sessionId = sessions.get(userName);
 
       // Create session if needed
+      const userDir = getUserDir(userName);
       if (!sessionId) {
         const res = await oc.session.create({
           body: { title: `Steve - ${userName}` },
-          query: { directory: config.dataDir },
+          query: { directory: userDir },
         });
         if (res.data) {
           sessionId = res.data.id;
           sessions.set(userName, sessionId);
+          saveSessions();
         } else {
           throw new Error("Failed to create session");
         }
@@ -97,24 +136,24 @@ export class Brain {
       }
 
       // Send prompt (fire-and-forget: opencode responds via MCP send_telegram_message)
+      const { model } = getRuntime();
       const res = await oc.session.prompt({
         path: { id: sessionId },
         body: {
           parts,
           model: {
-            providerID: config.model.split("/")[0],
-            modelID: config.model.split("/")[1],
+            providerID: model.split("/")[0],
+            modelID: model.split("/")[1],
           },
         },
-        query: { directory: config.dataDir },
+        query: { directory: userDir },
       });
 
       if (res.error) {
-        // Session might have expired, try creating a new one
         if (res.response?.status === 404 || res.response?.status === 400) {
           p.log.warn(`Session expired for ${userName}, creating new one...`);
           sessions.delete(userName);
-          // Retry once with a new session
+          saveSessions();
           return this.process(userMessage, userName, files);
         }
         throw new Error(`OpenCode error: ${JSON.stringify(res.error)}`);
@@ -130,7 +169,44 @@ export class Brain {
     }
   }
 
+  /** Run a prompt in an isolated session (for cron/heartbeats — doesn't pollute user's conversation) */
+  async thinkIsolated(
+    userMessage: string,
+    userName: string,
+  ): Promise<void> {
+    try {
+      const oc = getClient();
+      const userDir = getUserDir(userName);
+
+      const session = await oc.session.create({
+        body: { title: `Steve - ${userName} (isolated)` },
+        query: { directory: userDir },
+      });
+
+      if (!session.data) throw new Error("Failed to create isolated session");
+
+      const res = await oc.session.prompt({
+        path: { id: session.data.id },
+        body: {
+          parts: [{ type: "text", text: `[${userName}]: ${userMessage}` }],
+          model: {
+            providerID: getRuntime().model.split("/")[0],
+            modelID: getRuntime().model.split("/")[1],
+          },
+        },
+        query: { directory: userDir },
+      });
+
+      if (res.error) {
+        throw new Error(`OpenCode error: ${JSON.stringify(res.error)}`);
+      }
+    } catch (error) {
+      p.log.error(`Isolated task failed for ${userName}: ${error instanceof Error ? error.message : error}`);
+    }
+  }
+
   stopAll() {
     sessions.clear();
+    saveSessions();
   }
 }

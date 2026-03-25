@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import type { Vault } from "../vault/index.js";
-import { renderDashboard, renderNewForm, renderEditForm, renderSetup } from "./views.js";
+import { getHealth } from "../health.js";
+import { renderDashboard, renderNewForm, renderEditForm, renderSetup, renderHome } from "./views.js";
 
 /** Parse field_name_0, field_value_0, field_name_1, field_value_1... into a JSON object */
 function parseFields(body: Record<string, string | File>): Record<string, string> {
@@ -91,11 +92,24 @@ export function startWebServer(vault: Vault, port: number) {
     return c.html(renderDashboard(vault.list(), getFieldNames(vault), "Setup complete! Steve is starting..."));
   });
 
+  // Health API (JSON)
+  app.get("/healthz", async (c) => {
+    const health = await getHealth();
+    return c.json(health, health.healthy ? 200 : 503);
+  });
+
+  // Home — dashboard with health + secrets overview
+  app.get("/", async (c) => {
+    const health = await getHealth();
+    const keys = vault.list();
+    return c.html(renderHome(health, keys, getFieldNames(vault)));
+  });
+
   // Redirect /secrets to add form (this is the URL the AI tells users to visit)
   app.get("/secrets", (c) => c.redirect("/secrets/new"));
 
-  // Dashboard
-  app.get("/", (c) => {
+  // Secrets list
+  app.get("/secrets/list", (c) => {
     const keys = vault.list();
     return c.html(renderDashboard(keys, getFieldNames(vault)));
   });

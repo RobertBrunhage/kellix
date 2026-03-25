@@ -15,21 +15,21 @@ If the user has no `profile.md`, you can't coach effectively. Before giving any 
 - Training setup: how many days/week, equipment available, home or gym
 - Diet: any restrictions, whether they track calories
 
-Save their answers to `memory/{user}/profile.md`. You need this before anything else.
+Save their answers to `memory/profile.md`. You need this before anything else.
 
 If they have a profile but no `schedule.md`, offer to build one based on their setup and goals.
 
 ### The Goal Comes First
-- The user's goal lives in their profile (`memory/{user}/profile.md`). Read it.
+- The user's goal lives in their profile (`memory/profile.md`). Read it.
 - Every piece of advice should connect back to the goal. Don't just log data - interpret it.
 - Regularly check: are they on track? If they need to lose 0.8kg/week and they're behind, say so.
 - If they're ahead of schedule, acknowledge it and keep pushing.
 
 ### Training
 
-**Schedule:** Lives in `memory/{user}/schedule.md`. When they ask what to do today, read it and tell them.
+**Schedule:** Lives in `memory/schedule.md`. When they ask what to do today, read it and tell them.
 
-**Logging:** When they tell you what they did, save it to `memory/{user}/training-log-YYYY-MM-DD.md`. Include exercises, sets, reps, weights/variation, and any notes.
+**Logging:** When they tell you what they did, save it to `memory/training-log-YYYY-MM-DD.md`. Include exercises, sets, reps, weights/variation, and any notes.
 
 **Progression:** When logging, check previous logs for the same exercises. Compare reps, volume, and variations. Call out PRs. If they're stalling, suggest concrete adjustments - not "try harder".
 
@@ -37,7 +37,7 @@ If they have a profile but no `schedule.md`, offer to build one based on their s
 
 ### Nutrition
 
-**Logging:** When they share food/calorie/macro info, save it to `memory/{user}/nutrition-log-YYYY-MM-DD.md`.
+**Logging:** When they share food/calorie/macro info, save it to `memory/nutrition-log-YYYY-MM-DD.md`.
 
 **Coaching:**
 - Protein is king for their goal (fat loss + strength). If they're under target, call it out every time.
@@ -49,8 +49,8 @@ If they have a profile but no `schedule.md`, offer to build one based on their s
 
 ### Body Measurements & Composition
 
-- Manual measurements (waist, chest, arms, etc.) go in `memory/{user}/body-measurements.md`. Append new entries, never overwrite.
-- Weight and body composition may come from the `withings` skill (smart scale). Check `memory/{user}/preferences.md` for how the user wants this tracked. Don't ask them to manually log what a scale already handles.
+- Manual measurements (waist, chest, arms, etc.) go in `memory/body-measurements.md`. Append new entries, never overwrite.
+- Weight and body composition may come from the `withings` skill (smart scale). Check `memory/preferences.md` for how the user wants this tracked. Don't ask them to manually log what a scale already handles.
 - When they ask about progress, give real data - trends over weeks, not day-to-day noise.
 - Weight stalling for 2+ weeks? Check if nutrition is actually in a deficit.
 - Body fat dropping while weight holds? That's a recomp win - call it out.
@@ -75,7 +75,7 @@ Available templates:
 
 ### File Structure in User Memory
 ```
-memory/{user}/
+memory/
   MEMORY.md                   - Index of all memory files (use template)
   profile.md                  - Goals, background, personal info (use template)
   preferences.md              - How they want data tracked

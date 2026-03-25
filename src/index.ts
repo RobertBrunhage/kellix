@@ -1,6 +1,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import * as p from "@clack/prompts";
-import { config } from "./config.js";
+import { config, setRuntimeConfig } from "./config.js";
 import { runSetup } from "./setup.js";
 import { createBot } from "./bot/index.js";
 import { registerCommands } from "./bot/commands.js";
@@ -11,6 +11,9 @@ import { startAutoSync } from "./sync.js";
 import { createMcpServer } from "./mcp/server.js";
 import { startMcpHttpServer } from "./mcp/transport.js";
 import { startWebServer } from "./web/index.js";
+import { setTelegramConnected, setVaultSecretCount, setReminderCount } from "./health.js";
+import { TelegramChannel } from "./channels/telegram.js";
+import { registerChannel } from "./channels/index.js";
 
 let opencodeProcess: ChildProcess | null = null;
 
@@ -95,14 +98,20 @@ async function main() {
   // Step 1: Setup (vault password, first-run, generate config)
   const { vault, botToken, users, model, webServerStarted } = await runSetup();
 
+  const allowedUserIds = Object.keys(users).map(Number).filter((id) => id > 0);
+  setRuntimeConfig({ botToken, users, allowedUserIds, model });
+
   p.intro("Steve");
 
   // Step 2: Start MCP HTTP server
   const hostIp = process.env.STEVE_HOST_IP || "localhost";
   const secretManagerUrl = `http://${hostIp}:${config.webPort}`;
 
+  const channel = new TelegramChannel(botToken, users);
+  registerChannel(channel);
+
   const mcpServer = createMcpServer(
-    { botToken, users, projectRoot: config.projectRoot, dataDir: config.dataDir, secretManagerUrl },
+    { channel, projectRoot: config.projectRoot, dataDir: config.dataDir, secretManagerUrl },
     vault,
   );
   await startMcpHttpServer(mcpServer, vault, config.mcpPort);
@@ -135,13 +144,15 @@ async function main() {
   if (!webServerStarted) {
     startWebServer(vault, config.webPort);
   }
-  p.log.success(`Secret manager at http://localhost:${config.webPort}`);
+  setVaultSecretCount(vault.list().length);
+  p.log.success(`Web UI at ${secretManagerUrl}`);
 
   // Step 5: Start services
   const brain = new Brain();
   if (!config.isDocker) {
     startAutoSync();
   }
+  setTelegramConnected(true);
   await startBot(botToken, brain);
 }
 
