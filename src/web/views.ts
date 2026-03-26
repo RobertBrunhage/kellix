@@ -85,12 +85,15 @@ export function renderHome(health: HealthStatus, keys: string[], fieldCounts?: R
 
     <div class="grid grid-cols-2 gap-3 mb-8">
       ${Object.entries(c.opencode).map(([name, oc]) => `
-      <a href="/users/${encodeURIComponent(name)}" class="bg-surface-card border border-border rounded-lg p-4 hover:border-zinc-600 transition-colors block">
-        <div class="flex items-center gap-2 mb-1">
-          ${dot(oc.status)}
-          <span class="text-xs text-zinc-400 capitalize">${escapeHtml(name)}</span>
+      <a href="/users/${encodeURIComponent(name)}" class="bg-surface-card border border-border rounded-lg p-4 hover:border-zinc-500 transition-colors block group">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-base font-medium text-white capitalize">${escapeHtml(name)}</span>
+          <span class="text-zinc-600 group-hover:text-zinc-400 transition-colors">&rarr;</span>
         </div>
-        <p class="text-sm text-white">${oc.status === "ok" ? "Connected" : escapeHtml(oc.message || "Error")}</p>
+        <div class="flex items-center gap-2">
+          ${dot(oc.status)}
+          <span class="text-xs ${oc.status === "ok" ? "text-zinc-400" : "text-amber-400"}">${oc.status === "ok" ? "Agent running" : "Needs setup"}</span>
+        </div>
       </a>`).join("")}
 
       <div class="bg-surface-card border border-border rounded-lg p-4">
@@ -116,6 +119,20 @@ export function renderHome(health: HealthStatus, keys: string[], fieldCounts?: R
         </div>
         <p class="text-sm text-white">${c.scheduler.reminders} reminder${c.scheduler.reminders === 1 ? "" : "s"}</p>
       </div>
+    </div>
+
+    <!-- Add User -->
+    <div class="bg-surface-card border border-border rounded-lg p-5 mb-8">
+      <h2 class="text-sm font-medium text-white mb-3">Add User</h2>
+      <form method="POST" action="/users/add" class="flex gap-2 items-end">
+        <input type="text" name="name" placeholder="Name" required
+          class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+        <input type="text" name="telegram_id" placeholder="Telegram ID" required
+          class="w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+        <button type="submit"
+          class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap">Add</button>
+      </form>
+      <p class="text-xs text-zinc-600 mt-2">Get the Telegram ID from @userinfobot. The agent starts automatically.</p>
     </div>
 
     <div class="text-xs text-zinc-600 text-center">Uptime: ${formatUptime(uptime)}</div>
@@ -261,47 +278,35 @@ export function renderEditForm(key: string, fields: [string, string][], error?: 
   `);
 }
 
-const MODELS = [
-  "openai/gpt-5.2",
-  "openai/gpt-5.2-codex",
-  "anthropic/claude-sonnet-4-6",
-  "anthropic/claude-haiku-4-5",
-  "google/gemini-2.5-pro",
-];
-
-export function renderUserDetail(name: string, settings: { model: string }, ocStatus: string, ocUrl: string): string {
+export function renderUserDetail(name: string, ocStatus: string, ocUrl: string): string {
   const dot = ocStatus === "running"
     ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>'
     : '<span class="inline-block w-2 h-2 rounded-full bg-red-400"></span>';
-
-  const modelOptions = MODELS.map((m) =>
-    `<option value="${m}" ${m === settings.model ? "selected" : ""}>${m}</option>`
-  ).join("");
 
   return layout(`${name}`, `
     ${nav}
     <a href="/" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; Dashboard</a>
 
-    <div class="flex items-center gap-3 mt-4 mb-8">
-      ${dot}
-      <h1 class="text-xl font-semibold text-white capitalize">${escapeHtml(name)}</h1>
-      <span class="text-xs text-zinc-500">${ocStatus}</span>
-    </div>
-
-    <!-- Settings -->
-    <div class="bg-surface-card border border-border rounded-lg p-5 mb-6">
-      <h2 class="text-sm font-medium text-white mb-4">Settings</h2>
-      <form method="POST" action="/users/${encodeURIComponent(name)}/settings" class="flex gap-3 items-end">
-        <div class="flex-1">
-          <label class="block text-xs text-zinc-400 mb-1">Model</label>
-          <select name="model"
-            class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white focus:border-border-focus focus:outline-none">
-            ${modelOptions}
-          </select>
-        </div>
-        <button type="submit"
-          class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save</button>
-      </form>
+    <div class="flex items-center justify-between mt-4 mb-8">
+      <div class="flex items-center gap-3">
+        ${dot}
+        <h1 class="text-xl font-semibold text-white capitalize">${escapeHtml(name)}</h1>
+        <span class="text-xs text-zinc-500">${ocStatus}</span>
+      </div>
+      <div class="flex gap-2">
+        ${ocStatus === "running" ? `
+          <form method="POST" action="/users/${encodeURIComponent(name)}/stop" class="inline">
+            <button type="submit" class="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-300 hover:bg-red-900 hover:text-red-300 transition-colors">Stop</button>
+          </form>
+          <form method="POST" action="/users/${encodeURIComponent(name)}/restart" class="inline">
+            <button type="submit" class="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">Restart</button>
+          </form>
+        ` : `
+          <form method="POST" action="/users/${encodeURIComponent(name)}/start" class="inline">
+            <button type="submit" class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Start Agent</button>
+          </form>
+        `}
+      </div>
     </div>
 
     <!-- OpenCode UI -->
@@ -364,39 +369,22 @@ export function renderSetup(error?: string): string {
       </div>
 
       <div class="bg-surface-card border border-border rounded-lg p-5">
-        <h2 class="text-sm font-medium text-white mb-1">Step 2 — Add users</h2>
+        <h2 class="text-sm font-medium text-white mb-1">Step 2 — Add yourself</h2>
         <p class="text-xs text-zinc-500 mb-4">
-          Each person needs a Telegram user ID. Message <strong class="text-zinc-300">@userinfobot</strong> on Telegram to get yours.
+          Message <strong class="text-zinc-300">@userinfobot</strong> on Telegram to get your user ID.
+          You can add more users later from the dashboard.
         </p>
-        <div id="users" class="space-y-2">
-          <div class="flex gap-2">
-            <input type="text" name="user_name_0" placeholder="Name" required
-              class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-            <input type="text" name="user_id_0" placeholder="Telegram ID" required
-              class="w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-          </div>
+        <div class="space-y-3">
+          <input type="text" name="user_name_0" placeholder="Your name" required
+            class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+          <input type="text" name="user_id_0" placeholder="Your Telegram ID" required
+            class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
         </div>
-        <button type="button" onclick="addUser()"
-          class="mt-3 px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors">+ Add another user</button>
       </div>
-
-      <input type="hidden" name="model" value="openai/gpt-5.2">
 
       <button type="submit"
         class="w-full py-3 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors font-medium">Finish Setup</button>
     </form>
-    <script>
-      let userIdx = 1;
-      function addUser() {
-        const row = document.createElement('div');
-        row.className = 'flex gap-2';
-        row.innerHTML = '<input type="text" name="user_name_' + userIdx + '" placeholder="Name" class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
-          + '<input type="text" name="user_id_' + userIdx + '" placeholder="Telegram ID" class="w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
-          + '<button type="button" onclick="this.parentElement.remove()" class="text-zinc-600 hover:text-red-400 px-1 text-lg">&times;</button>';
-        document.getElementById('users').appendChild(row);
-        userIdx++;
-      }
-    </script>
   `);
 }
 
@@ -407,11 +395,9 @@ export function renderSetupComplete(): string {
         <span class="text-2xl text-emerald-400">&#10003;</span>
       </div>
       <h1 class="text-2xl font-semibold text-white mb-2">You're all set!</h1>
-      <p class="text-sm text-zinc-400 mb-8">Steve is starting up. This page will refresh automatically.</p>
-      <div class="text-xs text-zinc-600">Starting agents...</div>
+      <p class="text-sm text-zinc-400 mb-4">Now start your agent from the dashboard.</p>
+      <a href="/"
+        class="inline-block px-6 py-2.5 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors font-medium">Go to Dashboard</a>
     </div>
-    <script>
-      setTimeout(function() { window.location.href = '/'; }, 5000);
-    </script>
   `);
 }

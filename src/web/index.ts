@@ -1,11 +1,11 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { execSync } from "node:child_process";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Vault } from "../vault/index.js";
 import { getHealth } from "../health.js";
-import { config, getUserDir, DEFAULT_MODEL } from "../config.js";
+import { config, getUserDir } from "../config.js";
 
 function getOpenCodePorts(): Record<string, number> {
   const portsPath = join(config.dataDir, "opencode-ports.json");
@@ -89,8 +89,6 @@ export function startWebServer(vault: Vault, port: number) {
   app.post("/setup", async (c) => {
     const body = await c.req.parseBody();
     const botToken = String(body.bot_token || "").trim();
-    const model = String(body.model || "openai/gpt-5.2").trim();
-
     if (!botToken) return c.html(renderSetup("Bot token is required"), 400);
 
     // Validate bot token
@@ -135,9 +133,31 @@ export function startWebServer(vault: Vault, port: number) {
     }
 
     vault.set("telegram/bot_token", botToken as any);
-    vault.set("telegram/users", users as any);
+    vault.set("steve/users", users as any);
 
     return c.html(renderSetupComplete());
+  });
+
+  // Add user
+  app.post("/users/add", async (c) => {
+    const body = await c.req.parseBody();
+    const name = String(body.name || "").trim();
+    const telegramId = String(body.telegram_id || "").trim();
+
+    if (!name || !telegramId || isNaN(Number(telegramId))) {
+      return c.redirect("/");
+    }
+
+    // Add to vault
+    const existing = (vault.get("steve/users") as Record<string, string>) || {};
+    existing[telegramId] = name;
+    vault.set("steve/users", existing as any);
+
+    // Write updated users.json — launch.ts watches this and starts new containers
+    const allUsers = [...new Set(Object.values(existing).map((n) => n.toLowerCase()))];
+    writeFileSync(join(config.dataDir, "users.json"), JSON.stringify({ users: allUsers }, null, 2), "utf-8");
+
+    return c.redirect("/");
   });
 
   // Health API (JSON)
@@ -148,7 +168,7 @@ export function startWebServer(vault: Vault, port: number) {
 
   // Home — redirect to setup if not configured, otherwise dashboard
   app.get("/", async (c) => {
-    if (!vault.has("telegram/bot_token") || !vault.has("telegram/users")) {
+    if (!vault.has("telegram/bot_token") || !vault.has("steve/users")) {
       return c.redirect("/setup");
     }
     const health = await getHealth();
@@ -216,20 +236,98 @@ export function startWebServer(vault: Vault, port: number) {
     return c.redirect("/");
   });
 
+  // Start user agent
+  app.post("/users/:name/start", (c) => {
+    const name = c.req.param("name").toLowerCase();
+    try {
+      // Try starting existing container first
+      try {
+        execSync(`docker start opencode-${name}`, { stdio: "ignore", timeout: 10000 });
+      } catch {
+        // Container doesn't exist — create via a temp compose file
+        const ports = getOpenCodePorts();
+        const nextPort = Math.max(3456, ...Object.values(ports)) + 1;
+        const port = ports[name] || nextPort;
+        ports[name] = port;
+        writeFileSync(join(config.dataDir, "opencode-ports.json"), JSON.stringify(ports, null, 2), "utf-8");
+
+        // Ensure user workspace and volumes exist
+        mkdirSync(join(config.dataDir, "users", name, "memory"), { recursive: true });
+        try { execSync("docker volume create steve_opencode-auth", { stdio: "ignore" }); } catch {}
+
+        const composeContent = [
+          "services:",
+          `  opencode-${name}:`,
+          "    image: ghcr.io/anomalyco/opencode:latest",
+          `    container_name: opencode-${name}`,
+          "    restart: unless-stopped",
+          '    command: ["serve", "--port", "3456", "--hostname", "0.0.0.0"]',
+          "    working_dir: /data",
+          "    ports:",
+          `      - "${port}:3456"`,
+          "    volumes:",
+          "      - type: volume",
+          "        source: steve_steve-data",
+          "        target: /data",
+          "        volume:",
+          `          subpath: users/${name}`,
+          "      - type: volume",
+          "        source: steve_steve-data",
+          "        target: /data/skills",
+          "        volume:",
+          "          subpath: skills",
+          "      - type: volume",
+          "        source: steve_steve-data",
+          "        target: /data/shared",
+          "        volume:",
+          "          subpath: shared",
+          "      - steve_opencode-auth:/root/.local/share/opencode",
+          "    networks: [steve_steve-net]",
+          "",
+          "volumes:",
+          "  steve_steve-data:",
+          "    external: true",
+          "  steve_opencode-auth:",
+          "    external: true",
+          "",
+          "networks:",
+          "  steve_steve-net:",
+          "    external: true",
+        ].join("\n");
+
+        const composeFile = `/tmp/opencode-${name}.yml`;
+        writeFileSync(composeFile, composeContent, "utf-8");
+        execSync(`docker compose -p steve -f ${composeFile} up -d`, { stdio: "ignore", timeout: 30000 });
+      }
+    } catch (err) {
+      console.error("Failed to start agent:", err instanceof Error ? err.message : err);
+    }
+    return c.redirect(`/users/${name}`);
+  });
+
+  // Stop user agent
+  app.post("/users/:name/stop", (c) => {
+    const name = c.req.param("name").toLowerCase();
+    try {
+      execSync(`docker stop opencode-${name}`, { stdio: "ignore", timeout: 15000 });
+    } catch {}
+    return c.redirect(`/users/${name}`);
+  });
+
+  // Restart user agent
+  app.post("/users/:name/restart", (c) => {
+    const name = c.req.param("name").toLowerCase();
+    try {
+      execSync(`docker restart opencode-${name}`, { stdio: "ignore", timeout: 15000 });
+    } catch {}
+    return c.redirect(`/users/${name}`);
+  });
+
   // User detail page
   app.get("/users/:name", async (c) => {
     const name = c.req.param("name").toLowerCase();
     const userDir = getUserDir(name);
     if (!existsSync(userDir)) return c.redirect("/");
-
-    // Read settings
-    let settings = { model: DEFAULT_MODEL };
-    const settingsPath = join(userDir, "settings.json");
-    try {
-      if (existsSync(settingsPath)) {
-        settings = JSON.parse(readFileSync(settingsPath, "utf-8"));
-      }
-    } catch {}
 
     // Check OpenCode status
     let ocStatus = "unknown";
@@ -245,19 +343,7 @@ export function startWebServer(vault: Vault, port: number) {
     const ocPort = ports[name] || 0;
     const ocUrl = ocPort ? `http://${hostIp}:${ocPort}` : "";
 
-    return c.html(renderUserDetail(name, settings, ocStatus, ocUrl));
-  });
-
-  // User settings save
-  app.post("/users/:name/settings", async (c) => {
-    const name = c.req.param("name").toLowerCase();
-    const body = await c.req.parseBody();
-    const model = String(body.model || DEFAULT_MODEL).trim();
-
-    const settingsPath = join(getUserDir(name), "settings.json");
-    writeFileSync(settingsPath, JSON.stringify({ model }, null, 2), "utf-8");
-
-    return c.redirect(`/users/${name}`);
+    return c.html(renderUserDetail(name, ocStatus, ocUrl));
   });
 
   // User container logs (JSON API)

@@ -6,8 +6,8 @@ import {
   cpSync,
 } from "node:fs";
 import { join } from "node:path";
-import { steveDir, config, DEFAULT_MODEL } from "./config.js";
-import { Vault } from "./vault/index.js";
+import { steveDir, config } from "./config.js";
+import { Vault, readKeyfile, initializeVault, hasKeyfile } from "./vault/index.js";
 
 // --- Directory and config setup ---
 
@@ -43,11 +43,6 @@ function setupUserWorkspace(userName: string) {
 
   // shared/ and skills/ are mounted via Docker volumes, no symlinks needed
 
-  // Create default settings.json if it doesn't exist
-  const settingsPath = join(userDir, "settings.json");
-  if (!existsSync(settingsPath)) {
-    writeFileSync(settingsPath, JSON.stringify({ model: DEFAULT_MODEL }, null, 2), "utf-8");
-  }
 }
 
 function generateRuntimeConfig(users: Record<string, string>) {
@@ -116,23 +111,36 @@ export interface SetupResult {
 }
 
 export async function runSetup(): Promise<SetupResult> {
-  // Vault password always comes from env (launch.ts sets it)
-  const vaultPassword = process.env.STEVE_VAULT_KEY;
-  if (!vaultPassword) {
-    console.error("STEVE_VAULT_KEY not set");
+  let keyfile: Buffer;
+
+  if (hasKeyfile(config.vaultDir)) {
+    // Subsequent run — read keyfile directly
+    const kf = readKeyfile(config.vaultDir);
+    if (!kf) {
+      console.error("Failed to read vault keyfile.");
+      process.exit(1);
+    }
+    keyfile = kf;
+  } else if (process.env.STEVE_VAULT_PASSWORD) {
+    // First run — create keyfile from password
+    const password = process.env.STEVE_VAULT_PASSWORD;
+    delete process.env.STEVE_VAULT_PASSWORD;
+    keyfile = initializeVault(config.vaultDir, password);
+  } else {
+    console.error("No vault keyfile and no password provided. Run pnpm launch.");
     process.exit(1);
   }
 
   let vault: Vault;
   try {
-    vault = new Vault(config.vaultPath, vaultPassword);
-  } catch {
-    console.error("Wrong vault password.");
+    vault = new Vault(config.vaultDir, keyfile);
+  } catch (err) {
+    console.error("Failed to decrypt vault:", err instanceof Error ? err.message : err);
     process.exit(1);
   }
 
   const botToken = vault.getString("telegram/bot_token");
-  const users = vault.get("telegram/users") as Record<string, string> | null;
+  const users = vault.get("steve/users") as Record<string, string> | null;
 
   if (!botToken || !users || Object.keys(users).length === 0) {
     createDirectories();

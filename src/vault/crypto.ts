@@ -36,3 +36,33 @@ export function decrypt(blob: Buffer, password: string): string {
 
   return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf-8");
 }
+
+// --- Key-based encryption (for keyfile mode) ---
+
+/** Encrypt data using a raw 32-byte key (no password derivation) */
+export function encryptWithKey(data: string, key: Buffer): Buffer {
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv(ALGORITHM, key, iv);
+  const encrypted = Buffer.concat([cipher.update(data, "utf-8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+
+  // Format: iv (16) + tag (16) + ciphertext (no salt — key is already derived)
+  return Buffer.concat([iv, tag, encrypted]);
+}
+
+/** Decrypt data using a raw 32-byte key */
+export function decryptWithKey(blob: Buffer, key: Buffer): string {
+  const iv = blob.subarray(0, IV_LENGTH);
+  const tag = blob.subarray(IV_LENGTH, IV_LENGTH + TAG_LENGTH);
+  const ciphertext = blob.subarray(IV_LENGTH + TAG_LENGTH);
+
+  const decipher = createDecipheriv(ALGORITHM, key, iv);
+  decipher.setAuthTag(tag);
+
+  return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf-8");
+}
+
+/** Generate a random 32-byte keyfile */
+export function generateKeyfile(): Buffer {
+  return randomBytes(KEY_LENGTH);
+}

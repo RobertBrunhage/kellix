@@ -106,13 +106,13 @@ async function main() {
     p.log.warn(`Open ${secretManagerUrl}/setup to finish setup`);
 
     // Poll until configured
-    while (!vault.has("telegram/bot_token") || !vault.has("telegram/users")) {
+    while (!vault.has("telegram/bot_token") || !vault.has("steve/users")) {
       await sleep(2000);
     }
 
     // Re-read config and continue
     const newToken = vault.getString("telegram/bot_token")!;
-    const newUsers = vault.get("telegram/users") as Record<string, string>;
+    const newUsers = vault.get("steve/users") as Record<string, string>;
 
     const allowedUserIds = Object.keys(newUsers).map(Number).filter((id) => id > 0);
     setRuntimeConfig({ botToken: newToken, users: newUsers, allowedUserIds });
@@ -159,17 +159,6 @@ async function startServices(vault: any, botToken: string, users: Record<string,
   // Start services
   const brain = new Brain();
   setTelegramConnected(true);
-
-  // Send startup message to all users (also warms up OpenCode connections)
-  const userNames = [...new Set(Object.values(users))];
-  for (const name of userNames) {
-    try {
-      await channel.sendMessage(name, "Steve is ready.");
-      p.log.success(`${name} notified`);
-    } catch {
-      p.log.warn(`Could not notify ${name}`);
-    }
-  }
 
   await startBot(botToken, brain);
 }

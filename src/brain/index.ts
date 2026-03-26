@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk/client";
-import { getRuntime, getUserModel } from "../config.js";
+import { getRuntime } from "../config.js";
 
 const sessions: Map<string, string> = new Map();
 const queues: Map<string, Promise<void>> = new Map();
@@ -98,17 +98,10 @@ export class Brain {
         }
       }
 
-      // Send prompt (fire-and-forget: opencode responds via MCP send_telegram_message)
-      const model = getUserModel(userName);
+      // Send prompt — let OpenCode use its configured model
       const res = await oc.session.prompt({
         path: { id: sessionId },
-        body: {
-          parts,
-          model: {
-            providerID: model.split("/")[0],
-            modelID: model.split("/")[1],
-          },
-        },
+        body: { parts },
         query: { directory: userDir },
       });
 
@@ -151,10 +144,6 @@ export class Brain {
         path: { id: session.data.id },
         body: {
           parts: [{ type: "text", text: `[${userName}]: ${userMessage}` }],
-          model: {
-            providerID: getUserModel(userName).split("/")[0],
-            modelID: getUserModel(userName).split("/")[1],
-          },
         },
         query: { directory: userDir },
       });

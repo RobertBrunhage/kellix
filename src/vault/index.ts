@@ -1,15 +1,19 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { dirname } from "node:path";
-import { encrypt, decrypt } from "./crypto.js";
+import { dirname, join } from "node:path";
+import { encrypt, decrypt, encryptWithKey, decryptWithKey, generateKeyfile } from "./crypto.js";
+
+const KEYFILE_NAME = "keyfile";
+const KEYFILE_ENC_NAME = "keyfile.enc";
+const SECRETS_NAME = "secrets.enc";
 
 export class Vault {
   private data: Record<string, Record<string, unknown>> = {};
-  private password: string;
+  private key: Buffer;
   private filePath: string;
 
-  constructor(filePath: string, password: string) {
-    this.filePath = filePath;
-    this.password = password;
+  constructor(vaultDir: string, key: Buffer) {
+    this.filePath = join(vaultDir, SECRETS_NAME);
+    this.key = key;
     this.load();
   }
 
@@ -19,14 +23,14 @@ export class Vault {
       return;
     }
     const blob = readFileSync(this.filePath);
-    const json = decrypt(blob, this.password);
+    const json = decryptWithKey(blob, this.key);
     this.data = JSON.parse(json);
   }
 
   private save() {
     const dir = dirname(this.filePath);
     mkdirSync(dir, { recursive: true });
-    const blob = encrypt(JSON.stringify(this.data), this.password);
+    const blob = encryptWithKey(JSON.stringify(this.data), this.key);
     writeFileSync(this.filePath, blob);
   }
 
@@ -59,7 +63,6 @@ export class Vault {
     return Object.keys(this.data);
   }
 
-  /** Get all keys matching a prefix */
   getByPrefix(prefix: string): Record<string, Record<string, unknown>> {
     const result: Record<string, Record<string, unknown>> = {};
     for (const [key, value] of Object.entries(this.data)) {
@@ -69,8 +72,78 @@ export class Vault {
     }
     return result;
   }
+}
 
-  exists(): boolean {
-    return existsSync(this.filePath);
+/** Initialize vault directory: create keyfile if it doesn't exist */
+export function initializeVault(vaultDir: string, password: string): Buffer {
+  mkdirSync(vaultDir, { recursive: true });
+
+  const keyfilePath = join(vaultDir, KEYFILE_NAME);
+  const keyfileEncPath = join(vaultDir, KEYFILE_ENC_NAME);
+
+  if (existsSync(keyfilePath)) {
+    // Keyfile already exists — read it
+    return readFileSync(keyfilePath);
   }
+
+  // Generate new keyfile
+  const keyfile = generateKeyfile();
+
+  // Store raw keyfile (for daily auto-start)
+  writeFileSync(keyfilePath, keyfile);
+
+  // Store password-encrypted backup of keyfile (for backup/restore)
+  const encryptedKeyfile = encrypt(keyfile.toString("base64"), password);
+  writeFileSync(keyfileEncPath, encryptedKeyfile);
+
+  return keyfile;
+}
+
+/** Read the keyfile from vault directory (no password needed) */
+export function readKeyfile(vaultDir: string): Buffer | null {
+  const keyfilePath = join(vaultDir, KEYFILE_NAME);
+  if (!existsSync(keyfilePath)) return null;
+  return readFileSync(keyfilePath);
+}
+
+/** Recover keyfile from encrypted backup using password */
+export function recoverKeyfile(vaultDir: string, password: string): Buffer {
+  const keyfileEncPath = join(vaultDir, KEYFILE_ENC_NAME);
+  if (!existsSync(keyfileEncPath)) {
+    throw new Error("No encrypted keyfile backup found");
+  }
+  const blob = readFileSync(keyfileEncPath);
+  const base64 = decrypt(blob, password);
+  return Buffer.from(base64, "base64");
+}
+
+/** Migrate old password-based vault to keyfile mode */
+export function migrateVault(vaultDir: string, password: string): Buffer {
+  const oldSecretsPath = join(vaultDir, SECRETS_NAME);
+
+  // Read old vault with password
+  let data: Record<string, Record<string, unknown>> = {};
+  if (existsSync(oldSecretsPath)) {
+    try {
+      const blob = readFileSync(oldSecretsPath);
+      const json = decrypt(blob, password);
+      data = JSON.parse(json);
+    } catch {
+      throw new Error("Wrong password — cannot migrate vault");
+    }
+  }
+
+  // Generate keyfile
+  const keyfile = initializeVault(vaultDir, password);
+
+  // Re-encrypt vault with keyfile
+  const encrypted = encryptWithKey(JSON.stringify(data), keyfile);
+  writeFileSync(oldSecretsPath, encrypted);
+
+  return keyfile;
+}
+
+/** Check if vault is in keyfile mode (has a keyfile) or password mode */
+export function hasKeyfile(vaultDir: string): boolean {
+  return existsSync(join(vaultDir, KEYFILE_NAME));
 }

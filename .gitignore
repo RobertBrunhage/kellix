@@ -4,3 +4,4 @@ data/
 .env
 opencode.json
 docker-compose.yml
+steve-backup-*.enc

@@ -1,4 +1,3 @@
-import { readFileSync, existsSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
@@ -7,7 +6,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
 const steveDir = process.env.STEVE_DIR || join(homedir(), ".steve");
 
-const vaultPath = join("/vault", "secrets.enc");
+const vaultDir = "/vault";
 const mcpPort = Number(process.env.STEVE_MCP_PORT) || 3100;
 const webPort = Number(process.env.STEVE_WEB_PORT) || 3000;
 
@@ -23,7 +22,7 @@ export interface SteveConfig {
   skillsDir: string;
   defaultsDir: string;
   defaultSkillsDir: string;
-  vaultPath: string;
+  vaultDir: string;
   mcpPort: number;
   webPort: number;
 }
@@ -40,19 +39,6 @@ export interface RuntimeConfig {
   allowedUserIds: number[];
 }
 
-export const DEFAULT_MODEL = "openai/gpt-5.2";
-
-/** Read a user's model preference from their settings.json */
-export function getUserModel(userName: string): string {
-  const settingsPath = join(getUserDir(userName), "settings.json");
-  try {
-    if (existsSync(settingsPath)) {
-      const data = JSON.parse(readFileSync(settingsPath, "utf-8"));
-      if (data.model) return data.model;
-    }
-  } catch {}
-  return DEFAULT_MODEL;
-}
 
 let _runtime: RuntimeConfig | null = null;
 
@@ -74,7 +60,7 @@ export const config: SteveConfig = Object.freeze({
   skillsDir: join(steveDir, "skills"),
   defaultsDir: join(projectRoot, "defaults"),
   defaultSkillsDir: join(projectRoot, "defaults/skills"),
-  vaultPath,
+  vaultDir,
   mcpPort,
   webPort,
 });

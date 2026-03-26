@@ -41,8 +41,8 @@ async function main() {
   checks.push({ name: "Docker", ok: dockerOk, detail: dockerOk ? "running" : "not running or not installed" });
 
   // Vault file
-  const vaultOk = existsSync(config.vaultPath);
-  checks.push({ name: "Vault file", ok: vaultOk, detail: vaultOk ? config.vaultPath : "not found" });
+  const vaultOk = existsSync(config.vaultDir);
+  checks.push({ name: "Vault file", ok: vaultOk, detail: vaultOk ? config.vaultDir : "not found" });
 
   // Users directory
   const usersOk = existsSync(config.usersDir);
