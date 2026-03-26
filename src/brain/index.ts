@@ -61,14 +61,12 @@ export class Brain {
       p.log.step(`${userName} → thinking...`);
 
       const oc = getClientForUser(userName);
-      const userDir = "/data";
       let sessionId = sessions.get(userName);
 
       // Create session if needed
       if (!sessionId) {
         const res = await oc.session.create({
           body: { title: `Steve - ${userName}` },
-          query: { directory: userDir },
         });
         if (res.data) {
           sessionId = res.data.id;
@@ -102,7 +100,6 @@ export class Brain {
       const res = await oc.session.prompt({
         path: { id: sessionId },
         body: { parts },
-        query: { directory: userDir },
       });
 
       if (res.error) {
@@ -131,11 +128,9 @@ export class Brain {
   ): Promise<void> {
     try {
       const oc = getClientForUser(userName);
-      const userDir = "/data";
 
       const session = await oc.session.create({
         body: { title: `Steve - ${userName} (isolated)` },
-        query: { directory: userDir },
       });
 
       if (!session.data) throw new Error("Failed to create isolated session");
@@ -145,7 +140,6 @@ export class Brain {
         body: {
           parts: [{ type: "text", text: `[${userName}]: ${userMessage}` }],
         },
-        query: { directory: userDir },
       });
 
       if (res.error) {

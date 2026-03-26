@@ -79,6 +79,7 @@ steve-data volume:
       SOUL.md
       AGENTS.md
       memory/            # Memories, logs, schedules
+      .opencode-data/    # OpenCode auth, sessions, database
     vanessa/             # Vanessa's workspace (same structure)
   skills/                # Shared skills (all users)
   shared/                # Shared household data

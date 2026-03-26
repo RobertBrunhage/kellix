@@ -127,9 +127,11 @@ async function main() {
   // Build
   const s = p.spinner();
   s.start("Building");
-  generateCompose([]); // Base compose only — user containers started from dashboard
+  generateCompose([]);
   try {
     exec("docker compose build steve --quiet", true);
+    // Build custom OpenCode image for user agents
+    exec("docker build -t steve-opencode -f opencode.Dockerfile . -q", true);
   } catch {
     s.stop("Build failed");
     process.exit(1);

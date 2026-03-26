@@ -251,14 +251,14 @@ export function startWebServer(vault: Vault, port: number) {
         ports[name] = port;
         writeFileSync(join(config.dataDir, "opencode-ports.json"), JSON.stringify(ports, null, 2), "utf-8");
 
-        // Ensure user workspace and volumes exist
+        // Ensure user workspace exists
         mkdirSync(join(config.dataDir, "users", name, "memory"), { recursive: true });
-        try { execSync("docker volume create steve_opencode-auth", { stdio: "ignore" }); } catch {}
+        mkdirSync(join(config.dataDir, "users", name, ".opencode-data"), { recursive: true });
 
         const composeContent = [
           "services:",
           `  opencode-${name}:`,
-          "    image: ghcr.io/anomalyco/opencode:latest",
+          "    image: steve-opencode",
           `    container_name: opencode-${name}`,
           "    restart: unless-stopped",
           '    command: ["serve", "--port", "3456", "--hostname", "0.0.0.0"]',
@@ -281,13 +281,15 @@ export function startWebServer(vault: Vault, port: number) {
           "        target: /data/shared",
           "        volume:",
           "          subpath: shared",
-          "      - steve_opencode-auth:/root/.local/share/opencode",
+          "      - type: volume",
+          "        source: steve_steve-data",
+          "        target: /root/.local/share/opencode",
+          "        volume:",
+          `          subpath: users/${name}/.opencode-data`,
           "    networks: [steve_steve-net]",
           "",
           "volumes:",
           "  steve_steve-data:",
-          "    external: true",
-          "  steve_opencode-auth:",
           "    external: true",
           "",
           "networks:",

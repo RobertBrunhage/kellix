@@ -22,7 +22,6 @@ services:
 volumes:
   steve-data:
   steve-vault:
-  opencode-auth:
 
 networks:
   steve-net:

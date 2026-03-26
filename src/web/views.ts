@@ -314,9 +314,10 @@ export function renderUserDetail(name: string, ocStatus: string, ocUrl: string):
     <div class="bg-surface-card border border-border rounded-lg overflow-hidden mb-6">
       <div class="flex items-center justify-between px-5 py-3 border-b border-border">
         <h2 class="text-sm font-medium text-white">OpenCode</h2>
-        <a href="${ocUrl}" target="_blank"
+        <a href="${ocUrl}/L2RhdGE" target="_blank"
           class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Open in new tab</a>
       </div>
+      <p class="text-xs text-zinc-600 px-5 py-2">First time? Click the project name (top-left in OpenCode) and search for <code>//data</code> to see sessions.</p>
       <iframe src="${ocUrl}" class="w-full border-0" style="height:600px"></iframe>
     </div>` : `
     <div class="bg-surface-card border border-border rounded-lg p-5 mb-6">
