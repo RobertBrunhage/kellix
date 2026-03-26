@@ -2,12 +2,11 @@ import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { Bot, Context } from "grammy";
 import type { Brain } from "../brain/index.js";
-import { config, getRuntime } from "../config.js";
+import { config, getRuntime, getUserDir } from "../config.js";
 import { getUserName } from "./commands.js";
 
-const tmpDir = join(config.dataDir, "tmp");
-
-async function downloadPhoto(ctx: Context): Promise<string | null> {
+/** Download photo to user's workspace tmp dir. Returns {hostPath, containerPath}. */
+async function downloadPhoto(ctx: Context, userName: string): Promise<{ hostPath: string; containerPath: string } | null> {
   const photo = ctx.message?.photo;
   if (!photo || photo.length === 0) return null;
 
@@ -19,15 +18,20 @@ async function downloadPhoto(ctx: Context): Promise<string | null> {
   const response = await fetch(url);
   if (!response.ok) return null;
 
-  await mkdir(tmpDir, { recursive: true });
+  // Save to user's workspace so OpenCode container can access it
+  const userTmpDir = join(getUserDir(userName), "tmp");
+  await mkdir(userTmpDir, { recursive: true });
   const ext = file.file_path.split(".").pop() || "jpg";
   const filename = `photo-${Date.now()}.${ext}`;
-  const filepath = join(tmpDir, filename);
+  const hostPath = join(userTmpDir, filename);
 
   const buffer = Buffer.from(await response.arrayBuffer());
-  await writeFile(filepath, buffer);
+  await writeFile(hostPath, buffer);
 
-  return filepath;
+  // OpenCode sees the user workspace at /data, so the path inside the container is /data/tmp/filename
+  const containerPath = `/data/tmp/${filename}`;
+
+  return { hostPath, containerPath };
 }
 
 function keepTyping(ctx: Context): () => void {
@@ -73,18 +77,18 @@ export function registerMessageHandler(
     const userName = getUserName(ctx.from?.id ?? 0);
     const caption = ctx.message.caption || "The user sent a photo.";
 
-    const filepath = await downloadPhoto(ctx);
-    if (!filepath) {
+    const photo = await downloadPhoto(ctx, userName);
+    if (!photo) {
       stopTyping();
       await ctx.reply("Sorry, I couldn't download that image.");
       return;
     }
 
     try {
-      await brain.think(caption, userName, [filepath]);
+      await brain.think(caption, userName, [photo.containerPath]);
     } finally {
       stopTyping();
-      try { await unlink(filepath); } catch {}
+      try { await unlink(photo.hostPath); } catch {}
     }
   });
 }
