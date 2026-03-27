@@ -42,6 +42,15 @@ function setupUserWorkspace(userName: string) {
 
   // shared/ and skills/ are mounted via Docker volumes, no symlinks needed
 
+  // Copy OpenCode plugin for memory flush
+  const pluginSrc = join(config.defaultsDir, "opencode-plugin");
+  const pluginDest = join(userDir, ".opencode", "plugin");
+  if (existsSync(pluginSrc)) {
+    mkdirSync(pluginDest, { recursive: true });
+    for (const file of readdirSync(pluginSrc)) {
+      cpSync(join(pluginSrc, file), join(pluginDest, file));
+    }
+  }
 }
 
 function generateRuntimeConfig(users: Record<string, string>) {

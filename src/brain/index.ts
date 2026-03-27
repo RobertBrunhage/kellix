@@ -63,7 +63,22 @@ export class Brain {
       const oc = getClientForUser(userName);
       let sessionId = sessions.get(userName);
 
-      // Create session if needed
+      // Reuse existing session or find the last one from OpenCode
+      if (!sessionId) {
+        try {
+          const list = await oc.session.list({});
+          const existing = (list.data as any[])?.find(
+            (s: any) => s.title === `Steve - ${userName}` && !s.time?.archived,
+          );
+          if (existing?.id) {
+            sessionId = existing.id as string;
+            sessions.set(userName, sessionId);
+            p.log.info(`Resumed session for ${userName}`);
+          }
+        } catch {}
+      }
+
+      // Create new session only if no existing one found
       if (!sessionId) {
         const res = await oc.session.create({
           body: { title: `Steve - ${userName}` },
