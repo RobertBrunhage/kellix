@@ -29,7 +29,7 @@ If they have a profile but no `schedule.md`, offer to build one based on their s
 
 **Schedule:** Lives in `memory/schedule.md`. When they ask what to do today, read it and tell them.
 
-**Logging:** When they tell you what they did, save it to `memory/training-log-YYYY-MM-DD.md`. Include exercises, sets, reps, weights/variation, and any notes.
+**Logging:** When they tell you what they did, save it to `memory/training/YYYY-MM-DD.md`. Include exercises, sets, reps, weights/variation, and any notes.
 
 **Progression:** When logging, check previous logs for the same exercises. Compare reps, volume, and variations. Call out PRs. If they're stalling, suggest concrete adjustments - not "try harder".
 
@@ -37,7 +37,7 @@ If they have a profile but no `schedule.md`, offer to build one based on their s
 
 ### Nutrition
 
-**Logging:** When they share food/calorie/macro info, save it to `memory/nutrition-log-YYYY-MM-DD.md`.
+**Logging:** When they share food/calorie/macro info, save it to `memory/nutrition/YYYY-MM-DD.md`.
 
 **Coaching:**
 - Protein is king for their goal (fat loss + strength). If they're under target, call it out every time.
@@ -49,8 +49,8 @@ If they have a profile but no `schedule.md`, offer to build one based on their s
 
 ### Body Measurements & Composition
 
-- Manual measurements (waist, chest, arms, etc.) go in `memory/body-measurements.md`. Append new entries, never overwrite.
-- Weight and body composition may come from the `withings` skill (smart scale). Check `memory/preferences.md` for how the user wants this tracked. Don't ask them to manually log what a scale already handles.
+- Manual measurements (waist, chest, arms, etc.) go in `memory/body-measurements/YYYY-MM-DD.md`. One file per measurement session.
+- Weight and body composition may come from the `withings` skill (smart scale). Check the Preferences section in `memory/profile.md` for how the user wants this tracked. Don't ask them to manually log what a scale already handles.
 - When they ask about progress, give real data - trends over weeks, not day-to-day noise.
 - Weight stalling for 2+ weeks? Check if nutrition is actually in a deficit.
 - Body fat dropping while weight holds? That's a recomp win - call it out.
@@ -67,22 +67,24 @@ If they have a profile but no `schedule.md`, offer to build one based on their s
 Templates live in `skills/training-coach/templates/`. When creating a new file for a user, ALWAYS read the matching template first and follow its exact structure. Do not invent your own formats.
 
 Available templates:
-- `MEMORY.md` - User memory index (4-column table)
 - `profile.md` - Personal info, goals, training background
-- `body-measurements.md` - Manual measurement log (table format, one row per date)
+- `body-measurements.md` - Single measurement session
 - `training-log.md` - Daily workout log
 - `nutrition-log.md` - Daily nutrition log
 
 ### File Structure in User Memory
 ```
 memory/
-  MEMORY.md                   - Index of all memory files (use template)
-  profile.md                  - Goals, background, personal info (use template)
-  preferences.md              - How they want data tracked
-  schedule.md                 - Weekly training plan
-  body-measurements.md        - Manual measurement log (use template)
-  training-log-YYYY-MM-DD.md  - Daily workout logs (use template)
-  nutrition-log-YYYY-MM-DD.md - Daily nutrition logs (use template)
+  profile.md                     - Goals, background, personal info (use template)
+  schedule.md                    - Weekly training plan
+  daily/                         - Session summaries (auto-generated)
+    YYYY-MM-DD.md
+  training/                      - Daily workout logs (use template)
+    YYYY-MM-DD.md
+  nutrition/                     - Daily nutrition logs (use template)
+    YYYY-MM-DD.md
+  body-measurements/             - Manual measurement logs (use template, one per session)
+    YYYY-MM-DD.md
 ```
 
 Use Glob and Read to find and review past logs. Use Grep to search for specific exercises, weights, or nutrition data across logs.

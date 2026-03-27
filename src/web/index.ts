@@ -252,7 +252,9 @@ export function startWebServer(vault: Vault, port: number) {
         writeFileSync(join(config.dataDir, "opencode-ports.json"), JSON.stringify(ports, null, 2), "utf-8");
 
         // Ensure user workspace exists
-        mkdirSync(join(config.dataDir, "users", name, "memory"), { recursive: true });
+        for (const sub of ["memory", "memory/daily", "memory/nutrition", "memory/training", "memory/body-measurements"]) {
+          mkdirSync(join(config.dataDir, "users", name, sub), { recursive: true });
+        }
         mkdirSync(join(config.dataDir, "users", name, ".opencode-data"), { recursive: true });
 
         const composeContent = [

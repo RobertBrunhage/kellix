@@ -30,7 +30,9 @@ function syncSkills() {
 
 function setupUserWorkspace(userName: string) {
   const userDir = join(config.usersDir, userName.toLowerCase());
-  mkdirSync(join(userDir, "memory"), { recursive: true });
+  for (const sub of ["memory", "memory/daily", "memory/nutrition", "memory/training", "memory/body-measurements"]) {
+    mkdirSync(join(userDir, sub), { recursive: true });
+  }
 
   // Sync project-controlled files
   for (const file of ["SOUL.md", "AGENTS.md"]) {
@@ -42,9 +44,9 @@ function setupUserWorkspace(userName: string) {
 
   // shared/ and skills/ are mounted via Docker volumes, no symlinks needed
 
-  // Copy OpenCode plugin for memory flush
+  // Copy OpenCode plugins for memory flush
   const pluginSrc = join(config.defaultsDir, "opencode-plugin");
-  const pluginDest = join(userDir, ".opencode", "plugin");
+  const pluginDest = join(userDir, ".opencode", "plugins");
   if (existsSync(pluginSrc)) {
     mkdirSync(pluginDest, { recursive: true });
     for (const file of readdirSync(pluginSrc)) {

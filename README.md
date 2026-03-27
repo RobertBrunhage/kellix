@@ -1,10 +1,19 @@
 # Steve
 
-A personal assistant powered by [OpenCode](https://github.com/opencode-ai/opencode). Per-user Docker containers, encrypted vault, extensible with markdown skills.
+A fully autonomous household AI assistant you talk to on Telegram. Steve can do things for you — set up integrations, manage schedules, coach your health — without you ever handing over an API key or password in chat.
+
+You tell Steve what you need. If a skill requires credentials, Steve sends you a link to the web dashboard where you add them securely. The AI orchestrates everything but never sees your secrets.
 
 ```
-You (Telegram) --> Steve --> OpenCode (per-user) --> reads/writes data --> replies via MCP
+You (Telegram) → Steve → OpenCode (per-user container) → tools, memory, skills → replies
 ```
+
+## Why Steve
+
+- **Autonomous, not just a chatbot.** Steve reads your files, runs scripts, manages reminders, and connects to APIs — all from a Telegram message.
+- **Zero-trust secrets.** The AI never sees your API keys. Credentials live in an encrypted vault. When a skill needs them, Steve injects them into scripts at runtime and strips them from output. If something needs setup, Steve sends you a link — you never paste secrets into chat.
+- **Multi-user isolation.** Each person gets their own AI container with separate memory, sessions, and context. Your household shares skills and grocery lists, not private conversations.
+- **Extensible with markdown.** Skills are just a folder with a `SKILL.md` (natural language instructions) and optional scripts. No SDK, no API — write what you want the AI to do in plain English.
 
 ## Quick Start
 
@@ -17,113 +26,81 @@ pnpm install
 pnpm launch
 ```
 
-First run:
-1. Create a password (protects your encrypted vault)
-2. Open the web UI at `:3000` — add your Telegram bot token and yourself
-3. Go to the dashboard, click your name, click "Start Agent"
-4. In the OpenCode UI, connect your AI provider
-5. Message your bot on Telegram
+First run: create a password, open the web UI at `:3000`, add your Telegram bot token and yourself, start your agent, connect your AI provider in OpenCode, and message your bot.
 
-Subsequent runs: `pnpm launch` — no password needed (keyfile auto-decrypts).
+After that: `pnpm launch` — no password needed.
 
 ## Architecture
 
 ```
-Docker Network (private)
-┌─────────────────────────────────────────────────┐
-│                                                 │
-│  steve (TS)              opencode-robert        │
-│  - Telegram bot          - AI brain (isolated)  │
-│  - MCP server            - per-user workspace   │
-│  - Web dashboard (:3000)                        │
-│  - Encrypted vault       opencode-vanessa       │
-│  - Scheduler             - AI brain (isolated)  │
-│                          - per-user workspace   │
-│                                                 │
-│  steve-vault (volume)    steve-data (volume)    │
-│  keyfile + secrets       users, skills, shared  │
-└─────────────────────────────────────────────────┘
+Docker Network
+┌──────────────────────────────────────────────────┐
+│                                                  │
+│  steve (TS)               opencode-robert        │
+│  ├ Telegram bot           ├ AI brain (isolated)  │
+│  ├ MCP tools              └ per-user workspace   │
+│  ├ Web dashboard (:3000)                         │
+│  ├ Encrypted vault        opencode-vanessa       │
+│  └ Scheduler              ├ AI brain (isolated)  │
+│                           └ per-user workspace   │
+│                                                  │
+│  Volumes:                                        │
+│  steve-vault ── keyfile + encrypted secrets      │
+│  steve-data ─── users, skills, shared            │
+└──────────────────────────────────────────────────┘
 ```
 
-- **Steve container**: Telegram bot, MCP server, vault, web dashboard, scheduler
-- **OpenCode containers**: One per user, isolated workspaces, started from dashboard
-- **steve-data volume**: User workspaces, shared skills, shared household data
-- **steve-vault volume**: Encrypted secrets + keyfile (Steve-only, never exposed to AI)
+Each user gets a fully isolated OpenCode container with their own workspace, sessions, and AI context. Steve handles routing, scheduling, and secrets — the AI never touches the vault.
 
-## What It Does
+## Memory Structure
 
-- General-purpose assistant via Telegram
-- Web search and URL reading
-- Image understanding (send photos)
-- Health coaching: training, nutrition, body composition, goal tracking
-- Scheduled and one-off reminders
-- Multi-user with fully isolated containers per person
-- Shared skills and household memory
-- Extensible with markdown skills + shell scripts
-- Zero-trust secrets: AI never sees your API keys
-
-## How It Works
-
-Steve is plumbing. The brain is OpenCode running in per-user sandboxed containers. Each user's OpenCode reads `SOUL.md` (personality) and `AGENTS.md` (instructions), discovers skills, reads/writes memory files, and responds via the `send_message` MCP tool.
-
-The AI never sees your secrets. When a skill needs credentials, the MCP `run_script` tool injects them as environment variables. Scripts that produce credentials use the `save_to_vault` convention — Steve strips the secrets from the output before the AI sees it.
-
-## Data
-
-All data lives in Docker named volumes (no host bind mounts):
+Each user's workspace has a `memory/` directory with persistent files and organized logs:
 
 ```
-steve-data volume:
-  users/
-    robert/              # Robert's workspace (OpenCode working dir)
-      SOUL.md
-      AGENTS.md
-      memory/            # Memories, logs, schedules
-      .opencode-data/    # OpenCode auth, sessions, database
-    vanessa/             # Vanessa's workspace (same structure)
-  skills/                # Shared skills (all users)
-  shared/                # Shared household data
+memory/
+  profile.md             # Who they are, goals, preferences
+  schedule.md            # Weekly plan
+  daily/                 # Auto-generated session summaries
+    2026-03-27.md
+  training/              # Workout logs
+    2026-03-27.md
+  nutrition/             # Nutrition logs
+    2026-03-27.md
+  body-measurements/     # Measurement sessions
+    2026-03-27.md
 ```
 
 ## Skills
 
-A skill is a directory with a `SKILL.md`, optional scripts, and optional templates:
+A skill is a directory with instructions, optional scripts, and templates:
 
 ```
 my-skill/
-  SKILL.md              # Frontmatter + natural language instructions
-  scripts/              # Shell scripts (credentials auto-injected)
-  templates/            # File templates for consistent data formats
+  SKILL.md       # Natural language instructions for the AI
+  scripts/       # Shell scripts (credentials auto-injected)
+  templates/     # File templates for consistent formats
 ```
 
-Skills are shared across all users. Create skills by asking Steve or manually. See `skills/TEMPLATE.md`.
+Skills are shared across all users. Create them by asking Steve or add them manually. See `skills/TEMPLATE.md`.
 
-## Secrets
+## Secrets & Security
 
-All secrets live in an encrypted vault (AES-256-GCM + keyfile). Manage them at the web dashboard.
+The AI is fully autonomous but never handles raw secrets. Here's how it works:
 
-- Keyfile auto-decrypts on startup (no password needed daily)
-- Password only for first run and backup/restore
-- Bot token, API keys, OAuth tokens all in the vault
-- Scripts get credentials via `STEVE_CRED_*` env vars
-- Scripts save credentials via `save_to_vault` (stripped before AI sees output)
-- The AI has no access to the vault volume
+1. You ask Steve to set up an integration (e.g., "connect my Withings scale")
+2. Steve checks if credentials exist. If not, it sends you a link to the web dashboard.
+3. You add the credentials there — never in chat.
+4. Steve's `run_script` tool injects them as env vars at runtime. Scripts that produce new credentials (e.g., OAuth tokens) use `save_to_vault` in their output — Steve saves them and strips the secrets before the AI sees anything.
 
-## Backup & Restore
-
-```bash
-pnpm backup              # Encrypt all data to steve-backup-YYYY-MM-DD.enc
-pnpm restore <file>      # Decrypt and restore from backup
-```
+Vault is AES-256-GCM encrypted. A keyfile auto-decrypts on startup — password only on first run.
 
 ## Commands
 
 ```bash
-pnpm launch              # Start Steve (Docker)
-pnpm backup              # Create encrypted backup
+pnpm launch              # Start everything
+pnpm backup              # Encrypted backup
 pnpm restore <file>      # Restore from backup
-pnpm doctor              # Check system health
-pnpm build               # TypeScript build
+pnpm doctor              # Health check
 ```
 
 ## License
