@@ -4,8 +4,7 @@
 set -euo pipefail
 
 USERNAME="${1:?Usage: setup.sh <userName>}"
-HOST_IP="${STEVE_HOST_IP:-localhost}"
-WEB_PORT="${STEVE_WEB_PORT:-3000}"
+BASE_URL="${STEVE_BASE_URL:-http://localhost:3000}"
 
 # Step 1: Check client credentials
 CLIENT_ID="${STEVE_CRED_CLIENT_ID:-}"
@@ -15,9 +14,9 @@ if [[ -z "$CLIENT_ID" || -z "$CLIENT_SECRET" ]]; then
   cat <<EOF
 {"status":"needs_credentials","instructions":[
   "Create a Withings developer app at https://developer.withings.com",
-  "Set callback URL to: http://${HOST_IP}:${WEB_PORT}/callback",
+  "Set callback URL to: ${BASE_URL}/callback",
   "Open the secret manager and add client_id and client_secret under ${USERNAME}/withings"
-],"secret_manager":"http://${HOST_IP}:${WEB_PORT}/secrets/new"}
+],"secret_manager":"${BASE_URL}/secrets/new"}
 EOF
   exit 0
 fi
@@ -56,7 +55,7 @@ if [[ -n "$REFRESH_TOKEN" ]]; then
 fi
 
 # Step 4: Need OAuth — return URL immediately, don't block
-REDIRECT_URI="http://${HOST_IP}:${WEB_PORT}/callback"
+REDIRECT_URI="${BASE_URL}/callback"
 ENCODED_REDIRECT=$(python3 -c "import urllib.parse; print(urllib.parse.quote('${REDIRECT_URI}', safe=''))")
 AUTH_URL="https://account.withings.com/oauth2_user/authorize2?response_type=code&client_id=${CLIENT_ID}&redirect_uri=${ENCODED_REDIRECT}&scope=user.metrics&state=steve"
 

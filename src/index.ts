@@ -1,5 +1,5 @@
 import * as p from "@clack/prompts";
-import { config, setRuntimeConfig } from "./config.js";
+import { config, setRuntimeConfig, getBaseUrl } from "./config.js";
 import { runSetup } from "./setup.js";
 import { createBot } from "./bot/index.js";
 import { registerCommands } from "./bot/commands.js";
@@ -95,16 +95,13 @@ async function main() {
 
   p.intro("Steve");
 
-  const hostIp = process.env.STEVE_HOST_IP || "localhost";
-  const secretManagerUrl = `http://${hostIp}:${config.webPort}`;
-
   // Always start web UI (dashboard or setup wizard)
   startWebServer(vault, config.webPort);
-  p.log.success(`Web UI at ${secretManagerUrl}`);
+  p.log.success(`Web UI at ${getBaseUrl()}`);
 
   // No vault yet — wait for web wizard to create one
   if (!vault) {
-    p.log.warn(`Open ${secretManagerUrl}/setup to finish setup`);
+    p.log.warn(`Open ${getBaseUrl()}/setup to finish setup`);
 
     while (!hasKeyfile(config.vaultDir)) {
       await sleep(2000);
@@ -120,7 +117,7 @@ async function main() {
 
   if (!botToken || Object.keys(users).length === 0) {
     // Vault exists but not configured — wait for web UI setup
-    p.log.warn(`Open ${secretManagerUrl}/setup to finish setup`);
+    p.log.warn(`Open ${getBaseUrl()}/setup to finish setup`);
 
     while (!vault.has("telegram/bot_token") || !vault.has("steve/users")) {
       await sleep(2000);
@@ -149,22 +146,22 @@ async function main() {
       "utf-8",
     );
 
-    return startServices(vault, newToken, newUsers, secretManagerUrl);
+    return startServices(vault, newToken, newUsers);
   }
 
   const allowedUserIds = Object.keys(users).map(Number).filter((id) => id > 0);
   setRuntimeConfig({ botToken, users, allowedUserIds });
 
-  return startServices(vault, botToken, users, secretManagerUrl);
+  return startServices(vault, botToken, users);
 }
 
-async function startServices(vault: any, botToken: string, users: Record<string, string>, secretManagerUrl: string) {
+async function startServices(vault: any, botToken: string, users: Record<string, string>) {
   // MCP server
   const channel = new TelegramChannel(botToken, users);
   registerChannel(channel);
 
   const mcpFactory = createMcpServerFactory(
-    { channel, projectRoot: config.projectRoot, dataDir: config.dataDir, secretManagerUrl },
+    { channel, projectRoot: config.projectRoot, dataDir: config.dataDir },
     vault,
   );
   await startMcpHttpServer(mcpFactory, config.mcpPort);

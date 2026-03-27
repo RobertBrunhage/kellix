@@ -2,6 +2,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
 const steveDir = process.env.STEVE_DIR || join(homedir(), ".steve");
@@ -64,5 +65,11 @@ export const config: SteveConfig = Object.freeze({
   mcpPort,
   webPort,
 });
+
+/** Get the base URL for Steve's web UI — single source of truth */
+export function getBaseUrl(): string {
+  const host = process.env.STEVE_HOSTNAME || "localhost";
+  return `http://${host}:${config.webPort}`;
+}
 
 export { steveDir };

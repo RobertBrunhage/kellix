@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { Vault, initializeVault } from "../vault/index.js";
 import { getHealth } from "../health.js";
-import { config, getUserDir } from "../config.js";
+import { config, getUserDir, getBaseUrl } from "../config.js";
 
 function getOpenCodePorts(): Record<string, number> {
   const portsPath = join(config.dataDir, "opencode-ports.json");
@@ -358,9 +358,9 @@ export function startWebServer(vault: Vault | null, port: number) {
     }
 
     const ports = getOpenCodePorts();
-    const hostIp = process.env.STEVE_HOST_IP || "localhost";
     const ocPort = ports[name] || 0;
-    const ocUrl = ocPort ? `http://${hostIp}:${ocPort}` : "";
+    const baseUrl = new URL(getBaseUrl());
+    const ocUrl = ocPort ? `http://${baseUrl.hostname}:${ocPort}` : "";
 
     return c.html(renderUserDetail(name, ocStatus, ocUrl));
   });

@@ -5,14 +5,13 @@ import { execFile } from "node:child_process";
 import { z } from "zod";
 import type { Vault } from "../vault/index.js";
 import type { Channel } from "../channels/index.js";
-import { config } from "../config.js";
+import { config, getBaseUrl } from "../config.js";
 import { loadUserJobs, saveUserJobs, type Job } from "../scheduler.js";
 
 interface McpConfig {
   channel: Channel;
   projectRoot: string;
   dataDir: string;
-  secretManagerUrl: string;
 }
 
 /** Snapshot project scripts at startup (immutable, security-critical) */
@@ -182,7 +181,7 @@ export function createMcpServerFactory(mcpConfig: McpConfig, vault: Vault | null
     inputSchema: {},
   }, async () => {
     return {
-      content: [{ type: "text", text: mcpConfig.secretManagerUrl }],
+      content: [{ type: "text", text: getBaseUrl() }],
     };
   });
 
@@ -230,8 +229,7 @@ export function createMcpServerFactory(mcpConfig: McpConfig, vault: Vault | null
           ...process.env,
           STEVE_PROJECT_ROOT: projectRoot,
           STEVE_DATA_DIR: dataDir,
-          STEVE_HOST_IP: new URL(mcpConfig.secretManagerUrl).hostname,
-          STEVE_WEB_PORT: String(new URL(mcpConfig.secretManagerUrl).port || "3000"),
+          STEVE_BASE_URL: getBaseUrl(),
           ...credEnv,
         },
       }, (error, stdout, stderr) => {

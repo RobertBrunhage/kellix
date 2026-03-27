@@ -24,7 +24,7 @@ curl -O https://raw.githubusercontent.com/robertbrunhage/steve/main/docker-compo
 docker compose up -d
 ```
 
-Open `http://localhost:3000` — the setup wizard walks you through creating a password, adding your Telegram bot token, and adding yourself. Start your agent, connect your AI provider in OpenCode, and message your bot.
+Open `http://<your-hostname>.local:3000` — Steve auto-detects your machine's hostname for LAN access. The setup wizard walks you through creating a password, adding your Telegram bot token, and adding yourself. Start your agent, connect your AI provider in OpenCode, and message your bot.
 
 ### From Source (for development)
 

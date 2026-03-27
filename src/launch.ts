@@ -6,21 +6,6 @@ import * as p from "@clack/prompts";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
-function getHostIp(): string {
-  try {
-    for (const iface of ["en0", "en1", "en2", "en3", "en4", "en5"]) {
-      try {
-        const ip = execSync(`ipconfig getifaddr ${iface} 2>/dev/null`, { encoding: "utf-8" }).trim();
-        if (ip) return ip;
-      } catch {}
-    }
-  } catch {}
-  try {
-    const ip = execSync("hostname -I 2>/dev/null", { encoding: "utf-8" }).trim().split(" ")[0];
-    if (ip) return ip;
-  } catch {}
-  return "localhost";
-}
 
 function exec(cmd: string, quiet = false) {
   execSync(cmd, { stdio: quiet ? "ignore" : "inherit", cwd: projectRoot });
@@ -77,8 +62,12 @@ function generateCompose(userNames: string[]) {
 async function main() {
   p.intro("Steve");
 
-  process.env.STEVE_HOST_IP = getHostIp();
   process.env.STEVE_OPENCODE_IMAGE = "steve-opencode";
+  if (!process.env.HOSTNAME) {
+    try {
+      process.env.HOSTNAME = execSync("hostname", { encoding: "utf-8" }).trim();
+    } catch {}
+  }
 
   // Build
   const s = p.spinner();
