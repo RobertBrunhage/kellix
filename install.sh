@@ -206,6 +206,7 @@ run_image_tool() {
         image=$DEFAULT_STEVE_IMAGE
     fi
     docker run --rm -i \
+        --user root \
         -w "\$workdir" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "\$mount_dir":"\$mount_target" \

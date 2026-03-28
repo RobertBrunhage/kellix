@@ -99,6 +99,7 @@ run_image_tool() {
         env_args+=( -e "STEVE_BACKUP_PASSWORD=$STEVE_BACKUP_PASSWORD" )
     fi
     docker run --rm -i \
+        --user root \
         -w "$workdir" \
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "$mount_dir":"$mount_target" \
