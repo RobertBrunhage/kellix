@@ -11,6 +11,12 @@ COMPOSE_FILE="$INSTALL_ROOT/docker-compose.yml"
 ENV_FILE="$INSTALL_ROOT/.env"
 WRAPPER_PATH="$BIN_DIR/steve"
 DEFAULT_HOSTNAME=localhost
+DEFAULT_PROJECT=steve
+DEFAULT_WEB_PORT=3000
+DEFAULT_OPENCODE_PORT_BASE=3456
+DEFAULT_STEVE_IMAGE=ghcr.io/robertbrunhage/steve:latest
+DEFAULT_OPENCODE_IMAGE=ghcr.io/robertbrunhage/steve-opencode:latest
+DEFAULT_TELEGRAM_API_BASE=https://api.telegram.org
 
 requested_ref="$DEFAULT_REF"
 no_modify_path=false
@@ -92,6 +98,12 @@ write_env() {
     host=$(detect_hostname)
 
     cat > "$ENV_FILE" <<EOF
+STEVE_PROJECT=$DEFAULT_PROJECT
+STEVE_WEB_PORT=$DEFAULT_WEB_PORT
+STEVE_OPENCODE_PORT_BASE=$DEFAULT_OPENCODE_PORT_BASE
+STEVE_IMAGE=$DEFAULT_STEVE_IMAGE
+STEVE_OPENCODE_IMAGE=$DEFAULT_OPENCODE_IMAGE
+STEVE_TELEGRAM_API_BASE=$DEFAULT_TELEGRAM_API_BASE
 STEVE_HOSTNAME=$host
 EOF
 }
@@ -109,6 +121,9 @@ ENV_FILE="\$INSTALL_ROOT/.env"
 REPO_SLUG="${REPO_SLUG}"
 REF="${requested_ref}"
 RAW_BASE="https://raw.githubusercontent.com/${REPO_SLUG}/${requested_ref}"
+DEFAULT_PROJECT="${DEFAULT_PROJECT}"
+DEFAULT_WEB_PORT="${DEFAULT_WEB_PORT}"
+DEFAULT_STEVE_IMAGE="${DEFAULT_STEVE_IMAGE}"
 
 if ! command -v docker >/dev/null 2>&1; then
     printf 'Error: docker is required.\n' >&2
@@ -116,23 +131,35 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 docker_compose() {
-    docker compose --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" "\$@"
+    docker compose --project-name "\${STEVE_PROJECT:-$DEFAULT_PROJECT}" --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" "\$@"
+}
+
+get_env_value() {
+    local key=$1
+    if [[ -f "\$ENV_FILE" ]]; then
+        grep "^\${key}=" "\$ENV_FILE" | cut -d= -f2- || true
+    fi
 }
 
 show_url() {
-    local host
+    local host port
     host=localhost
+    port=$DEFAULT_WEB_PORT
     if [[ -f "\$ENV_FILE" ]]; then
         host=$(grep '^STEVE_HOSTNAME=' "\$ENV_FILE" | cut -d= -f2- || true)
+        port=$(grep '^STEVE_WEB_PORT=' "\$ENV_FILE" | cut -d= -f2- || true)
     fi
     if [[ -z "\$host" ]]; then
         host=localhost
     fi
+    if [[ -z "\$port" ]]; then
+        port=$DEFAULT_WEB_PORT
+    fi
     if [[ "\$host" == "localhost" ]]; then
-        printf 'Dashboard: http://localhost:3000\n'
+        printf 'Dashboard: http://localhost:%s\n' "\$port"
     else
-        printf 'Dashboard: http://%s.local:3000\n' "\$host"
-        printf 'Fallback:  http://localhost:3000\n'
+        printf 'Dashboard: http://%s.local:%s\n' "\$host" "\$port"
+        printf 'Fallback:  http://localhost:%s\n' "\$port"
     fi
 }
 
@@ -142,7 +169,7 @@ ensure_files() {
         exit 1
     fi
     if [[ ! -f "\$ENV_FILE" ]]; then
-        printf 'STEVE_HOSTNAME=${DEFAULT_HOSTNAME}\n' > "\$ENV_FILE"
+        printf 'STEVE_PROJECT=${DEFAULT_PROJECT}\nSTEVE_WEB_PORT=${DEFAULT_WEB_PORT}\nSTEVE_OPENCODE_PORT_BASE=${DEFAULT_OPENCODE_PORT_BASE}\nSTEVE_IMAGE=${DEFAULT_STEVE_IMAGE}\nSTEVE_OPENCODE_IMAGE=${DEFAULT_OPENCODE_IMAGE}\nSTEVE_TELEGRAM_API_BASE=${DEFAULT_TELEGRAM_API_BASE}\nSTEVE_HOSTNAME=${DEFAULT_HOSTNAME}\n' > "\$ENV_FILE"
     fi
 }
 
@@ -158,6 +185,8 @@ Commands:
   restart   Restart Steve
   logs      Follow logs
   ps        Show container status
+  backup    Create encrypted backup
+  restore   Restore encrypted backup
   pull      Pull latest image referenced by compose
   update    Refresh compose file and pull latest image
   setup-url Print the one-time setup URL
@@ -166,21 +195,69 @@ Commands:
 USAGE
 }
 
+run_image_tool() {
+    local workdir=$1
+    local mount_dir=$2
+    local mount_target=$3
+    shift 3
+    local image
+    image=$(get_env_value STEVE_IMAGE)
+    if [[ -z "\$image" ]]; then
+        image=$DEFAULT_STEVE_IMAGE
+    fi
+    docker run --rm -i \
+        -w "\$workdir" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "\$mount_dir":"\$mount_target" \
+        -e STEVE_PROJECT="\${STEVE_PROJECT:-$DEFAULT_PROJECT}" \
+        "\$image" "\$@"
+}
+
+backup_steve() {
+    local target=\${1:-}
+    local host_dir host_file
+    if [[ -n "\$target" ]]; then
+        host_dir=$(cd "\$(dirname "\$target")" && pwd)
+        host_file=$(basename "\$target")
+        run_image_tool /app "\$host_dir" /backup node dist/backup.js "/backup/\$host_file"
+    else
+        run_image_tool /app "\$PWD" /backup node dist/backup.js
+    fi
+}
+
+restore_steve() {
+    if [[ -z "\${1:-}" ]]; then
+        printf 'Usage: steve restore <backup-file>\n' >&2
+        exit 1
+    fi
+    docker_compose down >/dev/null 2>&1 || true
+    local source=\$1
+    local host_dir host_file
+    host_dir=$(cd "\$(dirname "\$source")" && pwd)
+    host_file=$(basename "\$source")
+    run_image_tool /app "\$host_dir" /backup node dist/restore.js "/backup/\$host_file"
+}
+
 show_setup_url() {
-    local host token
+    local host port token
     host=localhost
+    port=$DEFAULT_WEB_PORT
     if [[ -f "\$ENV_FILE" ]]; then
         host=$(grep '^STEVE_HOSTNAME=' "\$ENV_FILE" | cut -d= -f2- || true)
+        port=$(grep '^STEVE_WEB_PORT=' "\$ENV_FILE" | cut -d= -f2- || true)
     fi
-    token=$(docker exec steve sh -lc 'if [ -f /data/setup-token.json ]; then sed -n "s/.*\"token\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" /data/setup-token.json; fi' 2>/dev/null || true)
+    if [[ -z "\$port" ]]; then
+        port=$DEFAULT_WEB_PORT
+    fi
+    token=$(docker_compose exec -T steve sh -lc 'if [ -f /data/setup-token.json ]; then sed -n "s/.*\"token\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" /data/setup-token.json; fi' 2>/dev/null || true)
     if [[ -z "\$token" ]]; then
         printf 'No pending setup token found. Steve may already be configured.\n' >&2
         exit 1
     fi
     if [[ -z "\$host" || "\$host" == "localhost" ]]; then
-        printf 'Setup URL: http://localhost:3000/setup?token=%s\n' "\$token"
+        printf 'Setup URL: http://localhost:%s/setup?token=%s\n' "\$port" "\$token"
     else
-        printf 'Setup URL: http://%s.local:3000/setup?token=%s\n' "\$host" "\$token"
+        printf 'Setup URL: http://%s.local:%s/setup?token=%s\n' "\$host" "\$port" "\$token"
     fi
 }
 
@@ -204,6 +281,12 @@ case "\$cmd" in
         ;;
     ps)
         docker_compose ps
+        ;;
+    backup)
+        backup_steve "\${2:-}"
+        ;;
+    restore)
+        restore_steve "\${2:-}"
         ;;
     pull)
         docker_compose pull
@@ -307,14 +390,14 @@ write_wrapper
 maybe_update_path
 
 print_step "Starting Steve"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
+docker compose --project-name "$DEFAULT_PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 
 printf '\nSteve is installed.\n'
 printf 'Run `%s up` to start again later.\n' "$APP"
 printf 'Run `%s logs` to inspect logs.\n' "$APP"
 if [[ "$(detect_hostname)" == "localhost" ]]; then
-    printf 'Dashboard: http://localhost:3000\n'
+    printf 'Dashboard: http://localhost:%s\n' "$DEFAULT_WEB_PORT"
 else
-    printf 'Dashboard: http://%s.local:3000\n' "$(detect_hostname)"
-    printf 'Fallback:  http://localhost:3000\n'
+    printf 'Dashboard: http://%s.local:%s\n' "$(detect_hostname)" "$DEFAULT_WEB_PORT"
+    printf 'Fallback:  http://localhost:%s\n' "$DEFAULT_WEB_PORT"
 fi

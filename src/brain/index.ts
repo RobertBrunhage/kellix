@@ -1,6 +1,6 @@
 import * as p from "@clack/prompts";
 import { createOpencodeClient, type OpencodeClient } from "@opencode-ai/sdk/client";
-import { getRuntime } from "../config.js";
+import { getRuntime, getTelegramApiBase } from "../config.js";
 import { getTelegramChatId, toUserSlug } from "../users.js";
 
 type PromptPart =
@@ -25,7 +25,7 @@ async function sendFallback(userName: string, message: string) {
 
   try {
     await fetch(
-      `https://api.telegram.org/bot${rt.botToken}/sendMessage`,
+      `${getTelegramApiBase()}/bot${rt.botToken}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

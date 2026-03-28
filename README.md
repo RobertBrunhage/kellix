@@ -40,8 +40,14 @@ Open `http://<your-machine-name>.local:3000` — Steve auto-detects your machine
 git clone https://github.com/robertbrunhage/steve.git
 cd steve
 pnpm install
-pnpm launch
+./steve up
 ```
+
+Local development uses the same Docker Compose entrypoint as production. The only difference is image source:
+
+- `steve ...` uses published images
+- `./steve ...` uses locally built images
+- local dev runs on `http://localhost:3001` by default
 
 ## Architecture
 
@@ -110,16 +116,25 @@ Vault is AES-256-GCM encrypted. A keyfile auto-decrypts on startup — password 
 ## Commands
 
 ```bash
-docker compose up -d     # Start Steve
-docker compose down      # Stop Steve
-docker compose pull      # Update to latest
+steve up                 # Start Steve from published images
+steve down               # Stop Steve
+steve logs               # Follow logs
+steve setup-url          # Print the one-time setup URL
+steve backup             # Create encrypted backup
+steve restore <file>     # Restore encrypted backup
 ```
 
 For development:
 ```bash
-pnpm launch              # Build and start locally
-pnpm backup              # Encrypted backup
-pnpm restore <file>      # Restore from backup
+./steve build            # Build local images
+./steve up               # Start Steve locally
+./steve logs             # Follow local logs
+./steve setup-url        # Print the local setup URL
+./steve backup           # Create dev backup
+./steve restore <file>   # Restore dev backup
+pnpm launch              # Alias for ./steve up
+pnpm backup              # Alias for ./steve backup
+pnpm restore <file>      # Alias for ./steve restore
 pnpm doctor              # Health check
 ```
 

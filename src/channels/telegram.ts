@@ -1,5 +1,5 @@
 import type { Channel, SendResult } from "./index.js";
-import { getRuntime } from "../config.js";
+import { getRuntime, getTelegramApiBase } from "../config.js";
 import { getTelegramChatId } from "../users.js";
 
 export class TelegramChannel implements Channel {
@@ -35,7 +35,7 @@ export class TelegramChannel implements Channel {
 
     // Try HTML parse mode first, fall back to plain text
     let res = await fetch(
-      `https://api.telegram.org/bot${this.getBotToken()}/sendMessage`,
+      `${getTelegramApiBase()}/bot${this.getBotToken()}/sendMessage`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -50,7 +50,7 @@ export class TelegramChannel implements Channel {
 
     if (!res.ok) {
       res = await fetch(
-        `https://api.telegram.org/bot${this.getBotToken()}/sendMessage`,
+        `${getTelegramApiBase()}/bot${this.getBotToken()}/sendMessage`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -76,7 +76,7 @@ export class TelegramChannel implements Channel {
     if (!chatId) return { ok: false, error: `Unknown user "${userName}"` };
 
     const res = await fetch(
-      `https://api.telegram.org/bot${this.getBotToken()}/editMessageText`,
+      `${getTelegramApiBase()}/bot${this.getBotToken()}/editMessageText`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

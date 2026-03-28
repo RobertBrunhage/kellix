@@ -3,13 +3,15 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "launch": "tsx src/launch.ts",
+    "launch": "./steve up",
     "doctor": "tsx src/doctor.ts",
-    "backup": "tsx src/backup.ts",
-    "restore": "tsx src/restore.ts",
+    "backup": "./steve backup",
+    "restore": "./steve restore",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "tsx test/setup.test.ts && tsx test/mcp.test.ts && tsx test/platform.test.ts"
+    "test": "tsx test/setup.test.ts && tsx test/mcp.test.ts && tsx test/platform.test.ts",
+    "test:e2e:local": "tsx test/e2e/local-flow.ts",
+    "test:e2e:restore": "tsx test/e2e/restore-flow.ts"
   },
   "dependencies": {
     "@clack/prompts": "^1.1.0",

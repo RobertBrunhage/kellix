@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { config } from "../config.js";
+import { config, getTelegramApiBase } from "../config.js";
 import { Vault, initializeVault } from "../vault/index.js";
 import { getHealth } from "../health.js";
 import { ensureUser, normalizeUsers, type UsersMap } from "../users.js";
@@ -99,7 +99,7 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
       if (!botToken) return c.html(deps.buildSetupView(session.csrfToken, "Bot token is required", authOnly), 400);
 
       try {
-        const res = await deps.telegramFetch(`https://api.telegram.org/bot${botToken}/getMe`);
+        const res = await deps.telegramFetch(`${getTelegramApiBase()}/bot${botToken}/getMe`);
         const data = await res.json() as { ok: boolean; description?: string };
         if (!data.ok) {
           return c.html(deps.buildSetupView(session.csrfToken, `Invalid bot token: ${data.description || "check your token"}`, authOnly), 400);

@@ -69,9 +69,9 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const name = validatedName.value;
 
     try {
-      if (!startExistingUserAgent(name)) {
+      if (!startExistingUserAgent(deps.composeProject, name)) {
         const ports = getOpenCodePorts();
-        const nextPort = Math.max(3456, ...Object.values(ports)) + 1;
+        const nextPort = Math.max(config.opencodePortBase, ...Object.values(ports)) + 1;
         const portNumber = ports[name] || nextPort;
         ports[name] = portNumber;
         saveOpenCodePorts(ports);
@@ -98,7 +98,7 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const validatedName = validateUserSlug(c.req.param("name"));
     if (!validatedName.ok) return c.redirect("/");
     try {
-      stopUserAgent(validatedName.value);
+      stopUserAgent(deps.composeProject, validatedName.value);
     } catch {}
     return c.redirect(`/users/${validatedName.value}`);
   });
@@ -110,7 +110,7 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const validatedName = validateUserSlug(c.req.param("name"));
     if (!validatedName.ok) return c.redirect("/");
     try {
-      restartUserAgent(validatedName.value);
+      restartUserAgent(deps.composeProject, validatedName.value);
     } catch {}
     return c.redirect(`/users/${validatedName.value}`);
   });
@@ -151,7 +151,7 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const validatedName = validateUserSlug(c.req.param("name"));
     if (!validatedName.ok) return c.json({ logs: "Invalid user" }, 400);
     try {
-      return c.json({ logs: getUserAgentLogs(validatedName.value) || "No logs" });
+      return c.json({ logs: getUserAgentLogs(deps.composeProject, validatedName.value) || "No logs" });
     } catch (err) {
       return c.json({ logs: err instanceof Error ? err.message : "Could not fetch logs" });
     }

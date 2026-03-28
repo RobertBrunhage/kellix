@@ -1,6 +1,6 @@
 import type { Hono } from "hono";
 import { getHealth } from "../health.js";
-import { refreshRuntimeConfigFromVault } from "../config.js";
+import { getTelegramApiBase, refreshRuntimeConfigFromVault } from "../config.js";
 import { renderDashboard, renderEditForm, renderHome, renderNewForm } from "./views.js";
 import { validateSecretKey } from "./validate.js";
 import { getFieldNames, getVisibleVaultKeys, mergeFieldsWithExistingValue, parseFields, RESERVED_VAULT_KEYS, valueToFields } from "./common.js";
@@ -98,7 +98,7 @@ export function registerSecretsRoutes(app: Hono, deps: WebRouteDeps) {
 
     if (validatedKey.value === "telegram/bot_token") {
       try {
-        const res = await deps.telegramFetch(`https://api.telegram.org/bot${String(nextValue)}/getMe`);
+        const res = await deps.telegramFetch(`${getTelegramApiBase()}/bot${String(nextValue)}/getMe`);
         const data = await res.json() as { ok: boolean };
         if (!data.ok) {
           return c.html(renderEditForm(validatedKey.value, valueToFields(validatedKey.value, existingValue), "Telegram bot token looks invalid", result.session.csrfToken), 400);

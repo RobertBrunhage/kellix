@@ -2,7 +2,7 @@ import { writeFile, mkdir, unlink } from "node:fs/promises";
 import { join } from "node:path";
 import type { Bot, Context } from "grammy";
 import type { Brain } from "../brain/index.js";
-import { config, getRuntime, getUserDir } from "../config.js";
+import { getRuntime, getTelegramApiBase, getUserDir } from "../config.js";
 import { getUserName } from "./commands.js";
 
 /** Download photo to user's workspace tmp dir. Returns {hostPath, containerPath}. */
@@ -14,7 +14,7 @@ async function downloadPhoto(ctx: Context, userName: string): Promise<{ hostPath
   const file = await ctx.api.getFile(largest.file_id);
   if (!file.file_path) return null;
 
-  const url = `https://api.telegram.org/file/bot${getRuntime().botToken}/${file.file_path}`;
+  const url = `${getTelegramApiBase()}/file/bot${getRuntime().botToken}/${file.file_path}`;
   const response = await fetch(url);
   if (!response.ok) return null;
 

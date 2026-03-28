@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+REPO_ROOT=$(cd -- "$SCRIPT_DIR/.." && pwd)
+ENV_DIR="$REPO_ROOT/.steve-dev"
+ENV_FILE="$ENV_DIR/.env"
+COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
+PROJECT_NAME=${STEVE_PROJECT:-steve-dev}
+WEB_PORT=${STEVE_WEB_PORT:-3001}
+OPENCODE_PORT_BASE=${STEVE_OPENCODE_PORT_BASE:-4456}
+TELEGRAM_API_BASE=${STEVE_TELEGRAM_API_BASE:-https://api.telegram.org}
+
+LOCAL_STEVE_IMAGE=${STEVE_IMAGE:-steve-local}
+LOCAL_OPENCODE_IMAGE=${STEVE_OPENCODE_IMAGE:-steve-opencode-local}
+
+print_step() {
+    printf '\n==> %s\n' "$1"
+}
+
+detect_hostname() {
+    local host
+    host=$(hostname 2>/dev/null || true)
+    host=${host%%.local}
+    host=${host%%.*}
+    if [[ -z "$host" ]]; then
+        host=localhost
+    fi
+    printf '%s\n' "$host"
+}
+
+ensure_env() {
+    mkdir -p "$ENV_DIR"
+    cat > "$ENV_FILE" <<EOF
+STEVE_PROJECT=$PROJECT_NAME
+STEVE_WEB_PORT=$WEB_PORT
+STEVE_OPENCODE_PORT_BASE=$OPENCODE_PORT_BASE
+STEVE_TELEGRAM_API_BASE=$TELEGRAM_API_BASE
+STEVE_HOSTNAME=$(detect_hostname)
+STEVE_IMAGE=$LOCAL_STEVE_IMAGE
+STEVE_OPENCODE_IMAGE=$LOCAL_OPENCODE_IMAGE
+EOF
+}
+
+docker_compose() {
+    ensure_env
+    docker compose --project-name "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+show_url() {
+    local host
+    host=$(detect_hostname)
+    if [[ "$host" == "localhost" ]]; then
+        printf 'Dashboard: http://localhost:%s\n' "$WEB_PORT"
+    else
+        printf 'Dashboard: http://%s.local:%s\n' "$host" "$WEB_PORT"
+        printf 'Fallback:  http://localhost:%s\n' "$WEB_PORT"
+    fi
+}
+
+show_setup_url() {
+    local host token
+    host=$(detect_hostname)
+    token=$(docker_compose exec -T steve sh -lc 'if [ -f /data/setup-token.json ]; then sed -n "s/.*\"token\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" /data/setup-token.json; fi' 2>/dev/null || true)
+    if [[ -z "$token" ]]; then
+        printf 'No pending setup token found. Steve may already be configured.\n' >&2
+        exit 1
+    fi
+    if [[ "$host" == "localhost" ]]; then
+        printf 'Setup URL: http://localhost:%s/setup?token=%s\n' "$WEB_PORT" "$token"
+    else
+        printf 'Setup URL: http://%s.local:%s/setup?token=%s\n' "$host" "$WEB_PORT" "$token"
+    fi
+}
+
+image_exists() {
+    docker image inspect "$1" >/dev/null 2>&1
+}
+
+run_image_tool() {
+    local workdir=$1
+    local mount_dir=$2
+    local mount_target=$3
+    shift 3
+    local env_args=()
+    if [[ -n "${STEVE_BACKUP_PASSWORD:-}" ]]; then
+        env_args+=( -e "STEVE_BACKUP_PASSWORD=$STEVE_BACKUP_PASSWORD" )
+    fi
+    docker run --rm -i \
+        -w "$workdir" \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        -v "$mount_dir":"$mount_target" \
+        -e STEVE_PROJECT="$PROJECT_NAME" \
+        ${env_args[@]+"${env_args[@]}"} \
+        "$LOCAL_STEVE_IMAGE" "$@"
+}
+
+backup_steve() {
+    ensure_local_images
+    local target=${1:-}
+    local host_dir host_file
+    if [[ -n "$target" ]]; then
+        host_dir=$(cd "$(dirname "$target")" && pwd)
+        host_file=$(basename "$target")
+        run_image_tool /app "$host_dir" /backup node dist/backup.js "/backup/$host_file"
+    else
+        run_image_tool /app "$PWD" /backup node dist/backup.js
+    fi
+}
+
+restore_steve() {
+    if [[ -z "${1:-}" ]]; then
+        printf 'Usage: ./steve restore <backup-file>\n' >&2
+        exit 1
+    fi
+    ensure_local_images
+    docker_compose down >/dev/null 2>&1 || true
+    local source=$1
+    local host_dir host_file
+    host_dir=$(cd "$(dirname "$source")" && pwd)
+    host_file=$(basename "$source")
+    run_image_tool /app "$host_dir" /backup node dist/restore.js "/backup/$host_file"
+}
+
+build_images() {
+    print_step "Building Steve image"
+    docker build -t "$LOCAL_STEVE_IMAGE" "$REPO_ROOT"
+    print_step "Building OpenCode image"
+    docker build -t "$LOCAL_OPENCODE_IMAGE" -f "$REPO_ROOT/opencode.Dockerfile" "$REPO_ROOT"
+}
+
+ensure_local_images() {
+    if image_exists "$LOCAL_STEVE_IMAGE" && image_exists "$LOCAL_OPENCODE_IMAGE"; then
+        return
+    fi
+    build_images
+}
+
+usage() {
+    cat <<EOF
+Steve local helper
+
+Usage: ./steve <command>
+
+Commands:
+  build      Build local Steve and OpenCode images
+  up         Start Steve locally with local images
+  down       Stop Steve
+  restart    Restart Steve
+  logs       Follow logs
+  ps         Show container status
+  backup     Create encrypted backup from local dev data
+  restore    Restore encrypted backup into local dev data
+  setup-url  Print the one-time setup URL
+  url        Show dashboard URL
+  help       Show this help message
+EOF
+}
+
+cmd=${1:-help}
+case "$cmd" in
+    build)
+        build_images
+        ;;
+    up)
+        ensure_local_images
+        print_step "Starting Steve"
+        docker_compose up -d steve
+        show_url
+        ;;
+    down)
+        docker_compose down
+        ;;
+    restart)
+        docker_compose restart
+        show_url
+        ;;
+    logs)
+        docker_compose logs -f steve
+        ;;
+    ps)
+        docker_compose ps
+        ;;
+    backup)
+        backup_steve "${2:-}"
+        ;;
+    restore)
+        restore_steve "${2:-}"
+        ;;
+    setup-url)
+        show_setup_url
+        ;;
+    url)
+        show_url
+        ;;
+    help|--help|-h)
+        usage
+        ;;
+    *)
+        printf 'Unknown command: %s\n\n' "$cmd" >&2
+        usage >&2
+        exit 1
+        ;;
+esac

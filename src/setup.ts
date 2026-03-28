@@ -142,7 +142,7 @@ export async function runSetup(): Promise<SetupResult> {
     }
     keyfile = kf;
   } else if (process.env.STEVE_VAULT_PASSWORD) {
-    // First run via launch.ts — create keyfile from password env var
+    // First run via local/provisioned startup — create keyfile from password env var
     const password = process.env.STEVE_VAULT_PASSWORD;
     delete process.env.STEVE_VAULT_PASSWORD;
     keyfile = initializeVault(config.vaultDir, password);

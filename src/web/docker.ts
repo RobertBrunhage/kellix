@@ -11,6 +11,10 @@ export interface StartUserAgentOptions {
   port: number;
 }
 
+function getUserContainerName(composeProject: string, name: string): string {
+  return `${composeProject}-opencode-${name}`;
+}
+
 function runDocker(args: string[], opts: { timeout?: number; input?: Buffer; encoding?: BufferEncoding } = {}) {
   return spawnSync("docker", args, {
     timeout: opts.timeout,
@@ -29,18 +33,11 @@ function ensureDockerSuccess(result: ReturnType<typeof runDocker>, fallback = "D
 }
 
 export function getComposeProject(): string {
-  const result = runDocker(["inspect", "steve", "--format", "{{index .Config.Labels \"com.docker.compose.project\"}}"], {
-    timeout: 5000,
-    encoding: "utf-8",
-  });
-  if (result.status === 0 && typeof result.stdout === "string") {
-    return result.stdout.trim() || "steve";
-  }
-  return "steve";
+  return process.env.STEVE_PROJECT || "steve";
 }
 
-export function startExistingUserAgent(name: string): boolean {
-  const result = runDocker(["start", `opencode-${name}`], { timeout: 10000, encoding: "utf-8" });
+export function startExistingUserAgent(composeProject: string, name: string): boolean {
+  const result = runDocker(["start", getUserContainerName(composeProject, name)], { timeout: 10000, encoding: "utf-8" });
   if (result.status === 0) return true;
   return false;
 }
@@ -55,7 +52,7 @@ export function startUserAgent(opts: StartUserAgentOptions): void {
     "services:",
     `  opencode-${opts.name}:`,
     `    image: ${opts.image}`,
-    `    container_name: opencode-${opts.name}`,
+    `    container_name: ${getUserContainerName(opts.composeProject, opts.name)}`,
     "    restart: unless-stopped",
     '    command: ["serve", "--port", "3456", "--hostname", "0.0.0.0"]',
     "    working_dir: /data",
@@ -108,18 +105,18 @@ export function startUserAgent(opts: StartUserAgentOptions): void {
   }
 }
 
-export function stopUserAgent(name: string): void {
-  const result = runDocker(["stop", `opencode-${name}`], { timeout: 15000, encoding: "utf-8" });
+export function stopUserAgent(composeProject: string, name: string): void {
+  const result = runDocker(["stop", getUserContainerName(composeProject, name)], { timeout: 15000, encoding: "utf-8" });
   ensureDockerSuccess(result, "Failed to stop user agent");
 }
 
-export function restartUserAgent(name: string): void {
-  const result = runDocker(["restart", `opencode-${name}`], { timeout: 15000, encoding: "utf-8" });
+export function restartUserAgent(composeProject: string, name: string): void {
+  const result = runDocker(["restart", getUserContainerName(composeProject, name)], { timeout: 15000, encoding: "utf-8" });
   ensureDockerSuccess(result, "Failed to restart user agent");
 }
 
-export function getUserAgentLogs(name: string): string {
-  const result = runDocker(["logs", `opencode-${name}`, "--tail", "100"], { timeout: 5000, encoding: "utf-8" });
+export function getUserAgentLogs(composeProject: string, name: string): string {
+  const result = runDocker(["logs", getUserContainerName(composeProject, name), "--tail", "100"], { timeout: 5000, encoding: "utf-8" });
   if (result.error) throw result.error;
   return `${result.stdout || ""}${result.stderr || ""}`.trim();
 }

@@ -496,7 +496,8 @@ export function renderSetupLocked(): string {
         <div class="space-y-2 text-sm text-zinc-300 font-mono">
           <div>steve setup-url</div>
           <div>steve logs</div>
-          <div>pnpm launch</div>
+          <div>./steve setup-url</div>
+          <div>./steve logs</div>
         </div>
       </div>
       <p class="text-xs text-zinc-600 mb-2">If you already finished setup, go to <a href="/login" class="text-zinc-300 hover:text-white">/login</a>.</p>

@@ -12,6 +12,8 @@ const steveDir = process.env.STEVE_DIR || join(homedir(), ".steve");
 const vaultDir = process.env.STEVE_VAULT_DIR || "/vault";
 const mcpPort = Number(process.env.STEVE_MCP_PORT) || 3100;
 const webPort = Number(process.env.STEVE_WEB_PORT) || 3000;
+const opencodePortBase = Number(process.env.STEVE_OPENCODE_PORT_BASE) || 3456;
+const telegramApiBase = process.env.STEVE_TELEGRAM_API_BASE || "https://api.telegram.org";
 
 export interface SteveConfig {
   projectRoot: string;
@@ -25,6 +27,8 @@ export interface SteveConfig {
   vaultDir: string;
   mcpPort: number;
   webPort: number;
+  opencodePortBase: number;
+  telegramApiBase: string;
 }
 
 /** Get the workspace directory for a specific user */
@@ -72,7 +76,13 @@ export const config: SteveConfig = Object.freeze({
   vaultDir,
   mcpPort,
   webPort,
+  opencodePortBase,
+  telegramApiBase,
 });
+
+export function getTelegramApiBase(): string {
+  return config.telegramApiBase.replace(/\/$/, "");
+}
 
 /** Get the base URL for Steve's web UI — single source of truth */
 export function getBaseUrl(): string {
