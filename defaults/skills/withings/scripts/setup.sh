@@ -15,8 +15,8 @@ if [[ -z "$CLIENT_ID" || -z "$CLIENT_SECRET" ]]; then
 {"status":"needs_credentials","instructions":[
   "Create a Withings developer app at https://developer.withings.com",
   "Set callback URL to: ${BASE_URL}/callback",
-  "Open the secret manager and add client_id and client_secret under ${USERNAME}/withings"
-],"secret_manager":"${BASE_URL}/secrets/new"}
+  "Open your Steve user page and add client_id and client_secret to the Withings integration"
+],"secret_manager":"${BASE_URL}/users/${USERNAME}#secrets"}
 EOF
   exit 0
 fi
@@ -49,7 +49,7 @@ if [[ -n "$REFRESH_TOKEN" ]]; then
     NEW_EXPIRES_IN=$(echo "$RESPONSE" | jq -r '.body.expires_in')
     NEW_EXPIRES_AT=$(( $(date +%s) + NEW_EXPIRES_IN ))
 
-    echo "{\"status\":\"ready\",\"message\":\"Withings tokens refreshed. Setup complete.\",\"save_to_vault\":{\"key\":\"${USERNAME}/withings-tokens\",\"value\":{\"access_token\":\"${NEW_ACCESS}\",\"refresh_token\":\"${NEW_REFRESH}\",\"expires_at\":\"${NEW_EXPIRES_AT}\"}}}"
+    echo "{\"status\":\"ready\",\"message\":\"Withings tokens refreshed. Setup complete.\",\"save_to_vault\":{\"key\":\"users/${USERNAME}/withings/tokens\",\"value\":{\"access_token\":\"${NEW_ACCESS}\",\"refresh_token\":\"${NEW_REFRESH}\",\"expires_at\":\"${NEW_EXPIRES_AT}\"}}}"
     exit 0
   fi
 fi

@@ -1,4 +1,5 @@
 import type { HealthStatus } from "../health.js";
+import type { UserAppSecretSummary } from "../secrets.js";
 
 function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
@@ -22,7 +23,7 @@ function nav(csrfToken: string): string {
   <nav class="flex items-center justify-between gap-4 mb-8 border-b border-border pb-4">
     <div class="flex gap-4">
       <a href="/" class="text-sm text-zinc-400 hover:text-white transition-colors">Dashboard</a>
-      <a href="/secrets/list" class="text-sm text-zinc-400 hover:text-white transition-colors">Secrets</a>
+      <a href="/settings" class="text-sm text-zinc-400 hover:text-white transition-colors">Settings</a>
     </div>
     <form method="POST" action="/logout" class="inline">
       ${hiddenCsrf(csrfToken)}
@@ -80,7 +81,15 @@ function fieldRows(fields: [string, string][], options?: { maskValues?: boolean 
     </div>`).join("");
 }
 
-export function renderHome(health: HealthStatus, keys: string[], fieldCounts: Record<string, string[]> | undefined, csrfToken: string): string {
+function titleCase(value: string): string {
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+export function renderHome(health: HealthStatus, csrfToken: string): string {
   const dot = (status: string) => {
     const color = status === "ok" ? "bg-emerald-400" : status === "error" ? "bg-red-400" : "bg-zinc-500";
     return `<span class="inline-block w-2 h-2 rounded-full ${color}"></span>`;
@@ -151,156 +160,61 @@ export function renderHome(health: HealthStatus, keys: string[], fieldCounts: Re
   `);
 }
 
-export function renderDashboard(keys: string[], fieldCounts: Record<string, string[]> | undefined, flashMsg: string | undefined, csrfToken: string): string {
-  const flashHtml = flashMsg ? flash(flashMsg) : "";
-  const keysHtml = keys.length === 0
-    ? `<p class="text-center text-zinc-600 py-12">No secrets yet</p>`
-    : keys.map((key) => {
-      const fields = fieldCounts?.[key];
-      const fieldsHtml = fields
-        ? `<span class="text-xs text-zinc-500">${fields.map(escapeHtml).join(", ")}</span>`
-        : "";
-      return `
-      <div class="bg-surface-card border border-border rounded-lg p-4 mb-3 hover:border-zinc-600 transition-colors">
-        <div class="flex items-center justify-between">
-          <div class="min-w-0">
-            <p class="font-mono text-sm text-white truncate">${escapeHtml(key)}</p>
-            ${fieldsHtml}
+export function renderSettings(telegramBotToken: string | null, csrfToken: string, error?: string): string {
+  const errorHtml = error ? flash(error, "error") : "";
+  return layout("Settings", `
+    ${nav(csrfToken)}
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-xl font-semibold text-white">Settings</h1>
+        <p class="text-sm text-zinc-500 mt-1">System-level secrets and configuration for Steve.</p>
+      </div>
+    </div>
+    ${errorHtml}
+    <div id="system-secrets" class="bg-surface-card border border-border rounded-lg p-5">
+      <h2 class="text-sm font-medium text-white mb-1">Telegram</h2>
+      <p class="text-xs text-zinc-500 mb-4">This bot token powers Steve globally across all users.</p>
+      <form method="POST" action="/settings/telegram" class="space-y-4">
+        ${hiddenCsrf(csrfToken)}
+        <div>
+          <label class="block text-sm text-zinc-400 mb-1">Bot token</label>
+          <input type="password" name="bot_token" placeholder="Leave blank to keep current token"
+            class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+          <p class="text-xs text-zinc-600 mt-2">${telegramBotToken ? "A Telegram bot token is already saved." : "No Telegram bot token saved yet."}</p>
+        </div>
+        <button type="submit"
+          class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save Telegram Token</button>
+      </form>
+    </div>
+  `);
+}
+
+export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, csrfToken: string, options?: { telegramChatId?: string | null; userSecrets?: UserAppSecretSummary[] }): string {
+  const dot = ocStatus === "running"
+    ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>'
+    : '<span class="inline-block w-2 h-2 rounded-full bg-red-400"></span>';
+  const telegramConnected = !!options?.telegramChatId;
+  const secrets = options?.userSecrets || [];
+  const secretsHtml = secrets.length === 0
+    ? `<p class="text-sm text-zinc-500">No integrations saved for this user yet.</p>`
+    : secrets.map((secret) => `
+      <div class="bg-surface border border-border rounded-lg p-4">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h3 class="text-sm font-medium text-white">${escapeHtml(titleCase(secret.integration))}</h3>
+            <p class="text-xs text-zinc-500 mt-1">${escapeHtml(secret.fields.join(", "))}</p>
           </div>
-          <div class="flex gap-2 ml-4 flex-shrink-0">
-            <a href="/secrets/${encodeURIComponent(key)}/edit"
+          <div class="flex gap-2 flex-shrink-0">
+            <a href="/users/${encodeURIComponent(name)}/secrets/${encodeURIComponent(secret.integration)}/edit"
               class="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">Edit</a>
-            <form method="POST" action="/secrets/${encodeURIComponent(key)}/delete" class="inline" onsubmit="return confirm('Delete ${escapeHtml(key)}?')">
+            <form method="POST" action="/users/${encodeURIComponent(name)}/secrets/${encodeURIComponent(secret.integration)}/delete" class="inline" onsubmit="return confirm('Delete ${escapeHtml(titleCase(secret.integration))}?')">
               ${hiddenCsrf(csrfToken)}
               <button type="submit"
                 class="px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-300 hover:bg-red-900 hover:text-red-300 transition-colors">Delete</button>
             </form>
           </div>
         </div>
-      </div>`;
-    }).join("");
-
-  return layout("Secrets", `
-    ${nav(csrfToken)}
-    <div class="flex items-center justify-between mb-8">
-      <h1 class="text-xl font-semibold text-white">Secrets</h1>
-      <a href="/secrets/new"
-        class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Add Secret</a>
-    </div>
-    ${flashHtml}
-    ${keysHtml}
-  `);
-}
-
-export function renderNewForm(error: string | undefined, csrfToken: string): string {
-  const errorHtml = error ? flash(error, "error") : "";
-  return layout("New Secret", `
-    ${nav(csrfToken)}
-    <a href="/" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; Back</a>
-    <h1 class="text-xl font-semibold text-white mt-4 mb-6">Add Secret</h1>
-    ${errorHtml}
-    <form method="POST" action="/secrets">
-      ${hiddenCsrf(csrfToken)}
-      <div>
-        <label class="block text-sm text-zinc-400 mb-1">Name</label>
-        <input type="text" id="key" name="key" placeholder="e.g. robert/withings" required
-          class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-        <p class="text-xs text-zinc-600 mt-1">Format: user/service or just service name</p>
-      </div>
-
-      <div class="mt-6">
-        <label class="block text-sm text-zinc-400 mb-1">Fields</label>
-        <div id="fields">
-          <div class="flex gap-2 items-center mt-2 group">
-            <input type="text" name="field_name_0" placeholder="e.g. client_id" required
-              class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-            <input type="password" name="field_value_0" placeholder="value" required
-              class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-            <button type="button" onclick="this.parentElement.remove()"
-              class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>
-          </div>
-          <div class="flex gap-2 items-center mt-2 group">
-            <input type="text" name="field_name_1" placeholder="e.g. client_secret"
-              class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-            <input type="password" name="field_value_1" placeholder="value"
-              class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
-            <button type="button" onclick="this.parentElement.remove()"
-              class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>
-          </div>
-        </div>
-        <button type="button" onclick="addField()"
-          class="mt-3 px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors">+ Add field</button>
-      </div>
-
-      <div class="flex gap-3 mt-8">
-        <button type="submit"
-          class="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save</button>
-        <a href="/"
-          class="px-5 py-2 text-sm rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">Cancel</a>
-      </div>
-    </form>
-    <script>
-      let fieldIdx = 2;
-      function addField() {
-        const row = document.createElement('div');
-        row.className = 'flex gap-2 items-center mt-2 group';
-        row.innerHTML = '<input type="text" name="field_name_' + fieldIdx + '" placeholder="field name" class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
-          + '<input type="password" name="field_value_' + fieldIdx + '" placeholder="value" class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
-          + '<button type="button" onclick="this.parentElement.remove()" class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>';
-        document.getElementById('fields').appendChild(row);
-        fieldIdx++;
-      }
-    </script>
-  `);
-}
-
-export function renderEditForm(key: string, fields: [string, string][], error: string | undefined, csrfToken: string): string {
-  const errorHtml = error ? flash(error, "error") : "";
-  const nextIdx = fields.length;
-  return layout("Edit Secret", `
-    ${nav(csrfToken)}
-    <a href="/" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; Back</a>
-    <h1 class="text-xl font-semibold text-white mt-4 mb-6">Edit: <code class="text-blue-400">${escapeHtml(key)}</code></h1>
-    ${errorHtml}
-    <form method="POST" action="/secrets/${encodeURIComponent(key)}">
-      ${hiddenCsrf(csrfToken)}
-      <div>
-        <label class="block text-sm text-zinc-400 mb-1">Fields</label>
-        <p class="text-xs text-zinc-600 mb-3">Secret values are hidden. Enter a new value only for fields you want to replace.</p>
-        <div id="fields">
-          ${fieldRows(fields, { maskValues: true })}
-        </div>
-        <button type="button" onclick="addField()"
-          class="mt-3 px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors">+ Add field</button>
-      </div>
-
-      <div class="flex gap-3 mt-8">
-        <button type="submit"
-          class="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save</button>
-        <a href="/"
-          class="px-5 py-2 text-sm rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">Cancel</a>
-      </div>
-    </form>
-    <script>
-      let fieldIdx = ${nextIdx};
-      function addField() {
-        const row = document.createElement('div');
-        row.className = 'flex gap-2 items-center mt-2 group';
-        row.innerHTML = '<input type="text" name="field_name_' + fieldIdx + '" placeholder="field name" class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
-          + '<input type="password" name="field_value_' + fieldIdx + '" placeholder="value" class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
-          + '<button type="button" onclick="this.parentElement.remove()" class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>';
-        document.getElementById('fields').appendChild(row);
-        fieldIdx++;
-      }
-    </script>
-  `);
-}
-
-export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, csrfToken: string, options?: { telegramChatId?: string | null }): string {
-  const dot = ocStatus === "running"
-    ? '<span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>'
-    : '<span class="inline-block w-2 h-2 rounded-full bg-red-400"></span>';
-  const telegramConnected = !!options?.telegramChatId;
+      </div>`).join("");
 
   return layout(`${name}`, `
     ${nav(csrfToken)}
@@ -354,6 +268,20 @@ export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, 
       <p class="text-xs text-zinc-600 mt-2">This links the Steve user <code>${escapeHtml(name)}</code> to a Telegram account. More channels can live here later too.</p>
     </div>
 
+    <div id="secrets" class="bg-surface-card border border-border rounded-lg p-5 mb-6">
+      <div class="flex items-center justify-between gap-4 mb-4">
+        <div>
+          <h2 class="text-sm font-medium text-white">Secrets & Integrations</h2>
+          <p class="text-xs text-zinc-500 mt-1">Store this user's integration credentials here. Tokens stay managed behind the scenes.</p>
+        </div>
+        <a href="/users/${encodeURIComponent(name)}/secrets/new"
+          class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap">Add Integration</a>
+      </div>
+      <div class="space-y-3">
+        ${secretsHtml}
+      </div>
+    </div>
+
     ${ocUrl ? `
     <div class="bg-surface-card border border-border rounded-lg overflow-hidden mb-6">
       <div class="flex items-center justify-between px-5 py-3 border-b border-border">
@@ -385,6 +313,109 @@ export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, 
       }
       loadLogs();
       setInterval(loadLogs, 5000);
+    </script>
+  `);
+}
+
+export function renderUserSecretNewForm(userName: string, error: string | undefined, csrfToken: string): string {
+  const errorHtml = error ? flash(error, "error") : "";
+  return layout(`Add Integration`, `
+    ${nav(csrfToken)}
+    <a href="/users/${encodeURIComponent(userName)}#secrets" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; Back to ${escapeHtml(userName)}</a>
+    <h1 class="text-xl font-semibold text-white mt-4 mb-6">Add Integration for ${escapeHtml(userName)}</h1>
+    ${errorHtml}
+    <form method="POST" action="/users/${encodeURIComponent(userName)}/secrets">
+      ${hiddenCsrf(csrfToken)}
+      <div>
+        <label class="block text-sm text-zinc-400 mb-1">Integration name</label>
+        <input type="text" id="integration" name="integration" placeholder="e.g. withings" required
+          class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+      </div>
+
+      <div class="mt-6">
+        <label class="block text-sm text-zinc-400 mb-1">Fields</label>
+        <div id="fields">
+          <div class="flex gap-2 items-center mt-2 group">
+            <input type="text" name="field_name_0" placeholder="e.g. client_id" required
+              class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+            <input type="password" name="field_value_0" placeholder="value" required
+              class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+            <button type="button" onclick="this.parentElement.remove()"
+              class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>
+          </div>
+          <div class="flex gap-2 items-center mt-2 group">
+            <input type="text" name="field_name_1" placeholder="e.g. client_secret"
+              class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+            <input type="password" name="field_value_1" placeholder="value"
+              class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+            <button type="button" onclick="this.parentElement.remove()"
+              class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>
+          </div>
+        </div>
+        <button type="button" onclick="addField()"
+          class="mt-3 px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors">+ Add field</button>
+      </div>
+
+      <div class="flex gap-3 mt-8">
+        <button type="submit"
+          class="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save</button>
+        <a href="/users/${encodeURIComponent(userName)}#secrets"
+          class="px-5 py-2 text-sm rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">Cancel</a>
+      </div>
+    </form>
+    <script>
+      let fieldIdx = 2;
+      function addField() {
+        const row = document.createElement('div');
+        row.className = 'flex gap-2 items-center mt-2 group';
+        row.innerHTML = '<input type="text" name="field_name_' + fieldIdx + '" placeholder="field name" class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
+          + '<input type="password" name="field_value_' + fieldIdx + '" placeholder="value" class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
+          + '<button type="button" onclick="this.parentElement.remove()" class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>';
+        document.getElementById('fields').appendChild(row);
+        fieldIdx++;
+      }
+    </script>
+  `);
+}
+
+export function renderUserSecretEditForm(userName: string, integration: string, fields: [string, string][], error: string | undefined, csrfToken: string): string {
+  const errorHtml = error ? flash(error, "error") : "";
+  const nextIdx = fields.length;
+  return layout(`Edit ${integration}`, `
+    ${nav(csrfToken)}
+    <a href="/users/${encodeURIComponent(userName)}#secrets" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; Back to ${escapeHtml(userName)}</a>
+    <h1 class="text-xl font-semibold text-white mt-4 mb-6">Edit ${escapeHtml(titleCase(integration))}</h1>
+    ${errorHtml}
+    <form method="POST" action="/users/${encodeURIComponent(userName)}/secrets/${encodeURIComponent(integration)}">
+      ${hiddenCsrf(csrfToken)}
+      <div>
+        <label class="block text-sm text-zinc-400 mb-1">Fields</label>
+        <p class="text-xs text-zinc-600 mb-3">Secret values are hidden. Enter a new value only for fields you want to replace.</p>
+        <div id="fields">
+          ${fieldRows(fields, { maskValues: true })}
+        </div>
+        <button type="button" onclick="addField()"
+          class="mt-3 px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors">+ Add field</button>
+      </div>
+
+      <div class="flex gap-3 mt-8">
+        <button type="submit"
+          class="px-5 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save</button>
+        <a href="/users/${encodeURIComponent(userName)}#secrets"
+          class="px-5 py-2 text-sm rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors">Cancel</a>
+      </div>
+    </form>
+    <script>
+      let fieldIdx = ${nextIdx};
+      function addField() {
+        const row = document.createElement('div');
+        row.className = 'flex gap-2 items-center mt-2 group';
+        row.innerHTML = '<input type="text" name="field_name_' + fieldIdx + '" placeholder="field name" class="flex-none w-36 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
+          + '<input type="password" name="field_value_' + fieldIdx + '" placeholder="value" class="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">'
+          + '<button type="button" onclick="this.parentElement.remove()" class="opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 transition-opacity px-1 text-lg">&times;</button>';
+        document.getElementById('fields').appendChild(row);
+        fieldIdx++;
+      }
     </script>
   `);
 }

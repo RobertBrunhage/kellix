@@ -26,20 +26,24 @@ function run() {
   const projectRoot = join(testDir, "project");
   const vaultDir = join(testDir, "vault");
 
-  mkdirSync(join(dataDir, "skills", "weather", "scripts"), { recursive: true });
-  mkdirSync(join(dataDir, "skills", "legacy", "scripts"), { recursive: true });
+  mkdirSync(join(dataDir, "users", "robert", "skills", "weather", "scripts"), { recursive: true });
+  mkdirSync(join(dataDir, "users", "robert", "skills", "legacy", "scripts"), { recursive: true });
   mkdirSync(join(projectRoot, "scripts"), { recursive: true });
 
-  writeFileSync(join(dataDir, "skills", "weather", "skill.json"), JSON.stringify({
-    scripts: {
-      "fetch.sh": {
-        secrets: [
-          { key: "{user}/weather", fields: ["api_key"] },
-          { key: "{user}/weather-tokens", fields: ["refresh_token"] },
-        ],
-      },
-    },
-  }, null, 2));
+  writeFileSync(join(dataDir, "users", "robert", "skills", "weather", "SKILL.md"), `---
+name: Weather
+description: Test skill
+scripts:
+  fetch.sh:
+    secrets:
+      - key: users/{user}/weather/app
+        fields: [api_key]
+      - key: users/{user}/weather/tokens
+        fields: [refresh_token]
+---
+
+# Weather
+`, "utf-8");
 
   writeFileSync(join(projectRoot, "scripts", "manifest.json"), JSON.stringify({
     scripts: {
@@ -53,8 +57,8 @@ function run() {
 
   const key = initializeVault(vaultDir, "test-password-123");
   const vault = new Vault(vaultDir, key);
-  vault.set("robert/weather", { api_key: "weather-secret", ignored: "skip-me" } as any);
-  vault.set("robert/weather-tokens", { refresh_token: "refresh-secret", access_token: "unused" } as any);
+  vault.set("users/robert/weather/app", { api_key: "weather-secret", ignored: "skip-me" } as any);
+  vault.set("users/robert/weather/tokens", { refresh_token: "refresh-secret", access_token: "unused" } as any);
   vault.set("robert/legacy", { client_id: "legacy-id", client_secret: "legacy-secret" } as any);
   vault.set("robert/global", { token: "project-secret" } as any);
   vault.set("Robert/withings", { client_id: "mixed-client", client_secret: "mixed-secret" } as any);
@@ -62,7 +66,7 @@ function run() {
   const manifestContext = buildScriptExecutionContext({
     vault,
     userName: "robert",
-    scriptPath: join(dataDir, "skills", "weather", "scripts", "fetch.sh"),
+    scriptPath: join(dataDir, "users", "robert", "skills", "weather", "scripts", "fetch.sh"),
     dataDir,
     projectRoot,
     fallbackSkillName: "weather",
@@ -74,13 +78,13 @@ function run() {
       STEVE_CRED_REFRESH_TOKEN: "refresh-secret",
     });
     assert.equal(manifestContext.usedManifest, true);
-    assert.deepEqual(manifestContext.injectedSecretKeys, ["robert/weather", "robert/weather-tokens"]);
+    assert.deepEqual(manifestContext.injectedSecretKeys, ["users/robert/weather/app", "users/robert/weather/tokens"]);
   });
 
   const fallbackContext = buildScriptExecutionContext({
     vault,
     userName: "robert",
-    scriptPath: join(dataDir, "skills", "legacy", "scripts", "setup.sh"),
+    scriptPath: join(dataDir, "users", "robert", "skills", "legacy", "scripts", "setup.sh"),
     dataDir,
     projectRoot,
     fallbackSkillName: "legacy",
@@ -110,25 +114,30 @@ function run() {
   const mixedCaseContext = buildScriptExecutionContext({
     vault,
     userName: "robert",
-    scriptPath: join(dataDir, "skills", "weather", "scripts", "fetch.sh"),
+    scriptPath: join(dataDir, "users", "robert", "skills", "weather", "scripts", "fetch.sh"),
     dataDir,
     projectRoot,
   });
 
   test("manifest: exact secret lookup is case-insensitive for migrated keys", () => {
-    const withingsManifestPath = join(dataDir, "skills", "withings", "skill.json");
-    mkdirSync(join(dataDir, "skills", "withings", "scripts"), { recursive: true });
-    writeFileSync(withingsManifestPath, JSON.stringify({
-      scripts: {
-        "setup.sh": {
-          secrets: [{ key: "{user}/withings", fields: ["client_id", "client_secret"] }],
-        },
-      },
-    }, null, 2));
+    const withingsManifestPath = join(dataDir, "users", "robert", "skills", "withings", "SKILL.md");
+    mkdirSync(join(dataDir, "users", "robert", "skills", "withings", "scripts"), { recursive: true });
+    writeFileSync(withingsManifestPath, `---
+name: Withings
+description: Test skill
+scripts:
+  setup.sh:
+    secrets:
+      - key: users/{user}/withings/app
+        fields: [client_id, client_secret]
+---
+
+# Withings
+`, "utf-8");
     const ctx = buildScriptExecutionContext({
       vault,
       userName: "robert",
-      scriptPath: join(dataDir, "skills", "withings", "scripts", "setup.sh"),
+      scriptPath: join(dataDir, "users", "robert", "skills", "withings", "scripts", "setup.sh"),
       dataDir,
       projectRoot,
       fallbackSkillName: "withings",

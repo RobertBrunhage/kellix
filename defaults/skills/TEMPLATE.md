@@ -1,13 +1,12 @@
 # Skill Template
 
-Use this template when creating new skills. A skill is a directory inside `skills/`.
+Use this template when creating new skills. A skill is a directory inside the current user's `skills/` folder.
 
 ## Directory Structure
 
 ```
 skill-name/
   SKILL.md              # Required: frontmatter + instructions
-  skill.json            # Optional but recommended: script secret/capability manifest
   scripts/              # Optional: executable scripts the agent can run
     auth.sh             # e.g., OAuth flow helper
     fetch.sh            # e.g., API call wrapper
@@ -24,6 +23,11 @@ description: One-line description of what this skill does and when to use it
 per_user: true                    # true if each user needs their own credentials
 requires:
   bins: [curl, jq]               # CLI tools that must be installed
+scripts:
+  fetch.sh:
+    secrets:
+      - key: users/{user}/weather/app
+        fields: [api_key]
 ---
 ```
 
@@ -33,6 +37,7 @@ requires:
 - **description** (required): What the skill does. Be specific, this helps decide when to use it.
 - **per_user** (optional): Set to `true` if each user needs their own credentials/tokens.
 - **requires.bins** (optional): CLI binaries that must exist on PATH.
+- **scripts** (optional): Per-script secret injection and output handling rules.
 
 ## SKILL.md Body
 
@@ -54,37 +59,24 @@ Write natural-language instructions for the agent. Include:
 - Scripts should return meaningful exit codes
 - Keep scripts focused on deterministic tasks (API calls, auth, data fetching)
 
-## skill.json
+## Script Manifest In Frontmatter
 
-Use `skill.json` to declare exactly which vault entries a script needs. Steve injects only the declared fields, which keeps secrets scoped tightly and improves output redaction.
+Use the `scripts` frontmatter block in `SKILL.md` to declare exactly which vault entries a script needs. Steve injects only the declared fields, which keeps secrets scoped tightly and improves output redaction.
 
 Example:
 
-```json
-{
-  "scripts": {
-    "fetch.sh": {
-      "secrets": [
-        {
-          "key": "{user}/weather",
-          "fields": ["api_key"]
-        }
-      ]
-    },
-    "refresh.sh": {
-      "secrets": [
-        {
-          "key": "{user}/weather",
-          "fields": ["client_id", "client_secret"]
-        },
-        {
-          "key": "{user}/weather-tokens",
-          "fields": ["refresh_token"]
-        }
-      ]
-    }
-  }
-}
+```yaml
+scripts:
+  fetch.sh:
+    secrets:
+      - key: users/{user}/weather/app
+        fields: [api_key]
+  refresh.sh:
+    secrets:
+      - key: users/{user}/weather/app
+        fields: [client_id, client_secret]
+      - key: users/{user}/weather/tokens
+        fields: [refresh_token]
 ```
 
 ### Rules
@@ -92,7 +84,7 @@ Example:
 - Use `{user}` or `{userName}` in vault keys and Steve substitutes the current user slug.
 - If `fields` is omitted, all fields in that vault entry are injected.
 - Keep manifests narrow. Only request the secrets a script actually needs.
-- New skills that need credentials should create `skill.json` alongside `SKILL.md`.
+- Keep the machine-readable manifest in the same `SKILL.md` file as the instructions.
 
 ## Templates
 
@@ -100,19 +92,19 @@ If your skill creates user files (logs, profiles, etc.), add templates in a `tem
 
 ## Credentials
 
-Skills are global. Credentials are per-user.
+Skills and credentials are per-user by default.
 
-Per-user credentials are stored in the encrypted vault, managed through the secret manager web UI. When a script runs via `run_script`, Steve injects only the environment variables declared in `skill.json`.
+Per-user credentials are stored in the encrypted vault and managed from each user's page in the web UI. When a script runs via `run_script`, Steve injects only the environment variables declared in `SKILL.md` frontmatter.
 
-The vault key format is `{userName}/{skill-name}` with a JSON object value. Each field becomes `STEVE_CRED_{FIELD_NAME_UPPERCASED}`.
+The app secret key format is `users/{userName}/{skill-name}/app` with a JSON object value. Each field becomes `STEVE_CRED_{FIELD_NAME_UPPERCASED}`.
 
-Example: vault key `Robert/weather` with value `{"api_key": "abc123"}` becomes `STEVE_CRED_API_KEY=abc123` in the script's environment.
+Example: vault key `users/robert/weather/app` with value `{"api_key": "abc123"}` becomes `STEVE_CRED_API_KEY=abc123` in the script's environment.
 
 ### Setup flow
 
 When credentials are missing:
-1. Call `get_secret_url` to get the secret manager link
-2. Tell the user to open it and add their credentials under `{userName}/{skill-name}`
+1. Call `get_secret_url` with the current `userName` to get the user's integrations page
+2. Tell the user to open it and add their credentials on their user page under the `{skill-name}` integration
 3. Once confirmed, run the skill's scripts normally (credentials are injected automatically)
 
 ### In scripts
@@ -127,7 +119,7 @@ API_KEY="${STEVE_CRED_API_KEY:?Missing STEVE_CRED_API_KEY}"
 If your script produces credentials that need to be stored (e.g., OAuth tokens), include a `save_to_vault` field in the JSON output:
 
 ```json
-{"status": "ready", "save_to_vault": {"key": "{userName}/skill-name", "value": {"token": "..."}}}
+{"status": "ready", "save_to_vault": {"key": "users/{userName}/skill-name/tokens", "value": {"token": "..."}}}
 ```
 
 Steve saves it to the vault automatically and **strips it before the AI sees the output**. The AI only receives `{"status": "ready"}`. NEVER output raw credentials in any other field.
@@ -145,8 +137,8 @@ requires:
 
 ## Setup
 If the fetch script fails with "Missing STEVE_CRED":
-1. Call `get_secret_url` to get the link
-2. Tell the user to add their API key under `{userName}/weather` with field `api_key`
+1. Call `get_secret_url` with the current `userName` to get the user's integrations page
+2. Tell the user to add their API key under the Weather integration on their user page
 3. Once they confirm, retry
 
 ## Usage

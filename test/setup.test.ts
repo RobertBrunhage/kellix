@@ -85,7 +85,6 @@ async function run() {
     assert.ok(existsSync(testDir));
     assert.ok(existsSync(join(testDir, "users")));
     assert.ok(existsSync(join(testDir, "shared")));
-    assert.ok(existsSync(join(testDir, "skills")));
   });
 
   // --- Test 2: With vault password → returns vault, sets up workspace ---
@@ -116,7 +115,7 @@ async function run() {
 
   // --- Test 3: Simulate configured vault → full setup ---
 
-  result2.vault!.set("telegram/bot_token", "test-token-123" as any);
+  result2.vault!.set("system/telegram/bot_token", "test-token-123" as any);
   result2.vault!.set("steve/users", {
     testuser: {
       name: "testuser",
@@ -143,8 +142,8 @@ async function run() {
     });
   });
 
-  test("skills synced", () => {
-    const skills = readdirSync(join(testDir, "skills"));
+  test("default skills copied into each user workspace", () => {
+    const skills = readdirSync(join(testDir, "users", "testuser", "skills"));
     assert.ok(skills.includes("training-coach"), "training-coach missing");
     assert.ok(skills.includes("reminders"), "reminders missing");
   });
@@ -154,6 +153,7 @@ async function run() {
     assert.ok(existsSync(userDir));
     assert.ok(existsSync(join(userDir, "SOUL.md")));
     assert.ok(existsSync(join(userDir, "AGENTS.md")));
+    assert.ok(existsSync(join(userDir, "skills")));
   });
 
   test("memory subdirectories created", () => {
@@ -307,11 +307,11 @@ async function run() {
     assert.ok(adminCsrf);
   });
 
-  const secretsPage = await app.request("/secrets/list", { headers: { cookie: adminCookie || "" } });
-  const secretsHtml = await secretsPage.text();
-  test("web secrets: telegram bot token appears in secrets list", () => {
-    assert.equal(secretsPage.status, 200);
-    assert.match(secretsHtml, /telegram\/bot_token/);
+  const settingsPage = await app.request("/settings", { headers: { cookie: adminCookie || "" } });
+  const settingsHtml = await settingsPage.text();
+  test("web settings: system secrets page loads", () => {
+    assert.equal(settingsPage.status, 200);
+    assert.match(settingsHtml, /Save Telegram Token/);
   });
 
   const addUserWithoutCsrf = await app.request("/users/add", {
@@ -380,6 +380,7 @@ async function run() {
     assert.equal(friendPage.status, 200);
     assert.match(friendPageHtml, /Connections/);
     assert.match(friendPageHtml, /Connect Telegram/);
+    assert.match(friendPageHtml, /Secrets & Integrations/);
   });
 
   const connectTelegram = await app.request("/users/friend/telegram", {
@@ -414,50 +415,116 @@ async function run() {
     assert.equal(getRuntime().users.friend?.channels.telegram?.chat_id, "67890");
   });
 
-  const editTelegram = await app.request("/secrets/telegram%2Fbot_token/edit", {
-    headers: { cookie: adminCookie || "" },
-  });
-  const editTelegramHtml = await editTelegram.text();
-
-  test("web secrets: telegram bot token can be edited like a normal secret", () => {
-    assert.equal(editTelegram.status, 200);
-    assert.match(editTelegramHtml, /Edit: <code class="text-blue-400">telegram\/bot_token<\/code>/);
-  });
-
-  test("web secrets: edit form does not prefill secret values", () => {
-    assert.doesNotMatch(editTelegramHtml, /telegram-token/);
-    assert.match(editTelegramHtml, /Leave blank to keep current value/);
-  });
-
-  const updateTelegram = await app.request("/secrets/telegram%2Fbot_token", {
+  const updateTelegram = await app.request("/settings/telegram", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
       cookie: adminCookie || "",
     },
-    body: new URLSearchParams({ _csrf: adminCsrf || "", field_name_0: "bot_token", field_value_0: "updated-token" }),
+    body: new URLSearchParams({ _csrf: adminCsrf || "", bot_token: "updated-token" }),
   });
   const updatedVault = new Vault(join(testDir, "vault"), webVaultKey!);
 
-  test("web secrets: telegram token can be updated from secrets page", () => {
+  test("web settings: telegram token can be updated from settings page", () => {
     assert.equal(updateTelegram.status, 302);
-    assert.equal(updateTelegram.headers.get("location"), "/");
-    assert.equal(updatedVault.getString("telegram/bot_token"), "updated-token");
+    assert.equal(updateTelegram.headers.get("location"), "/settings");
+    assert.equal(updatedVault.getString("system/telegram/bot_token"), "updated-token");
   });
 
-  const keepTelegram = await app.request("/secrets/telegram%2Fbot_token", {
+  const keepTelegram = await app.request("/settings/telegram", {
     method: "POST",
     headers: {
       "content-type": "application/x-www-form-urlencoded",
       cookie: adminCookie || "",
     },
-    body: new URLSearchParams({ _csrf: adminCsrf || "", field_name_0: "bot_token", field_value_0: "" }),
+    body: new URLSearchParams({ _csrf: adminCsrf || "", bot_token: "" }),
   });
   const preservedVault = new Vault(join(testDir, "vault"), webVaultKey!);
 
-  test("web secrets: blank edit keeps the current secret value", () => {
+  test("web settings: blank edit keeps the current telegram token", () => {
     assert.equal(keepTelegram.status, 302);
-    assert.equal(preservedVault.getString("telegram/bot_token"), "updated-token");
+    assert.equal(preservedVault.getString("system/telegram/bot_token"), "updated-token");
+  });
+
+  const newSecretPage = await app.request("/users/friend/secrets/new", {
+    headers: { cookie: adminCookie || "" },
+  });
+  const newSecretHtml = await newSecretPage.text();
+
+  test("web users: user secret form lives under the user page", () => {
+    assert.equal(newSecretPage.status, 200);
+    assert.match(newSecretHtml, /Add Integration for friend/);
+  });
+
+  const createUserSecret = await app.request("/users/friend/secrets", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      cookie: adminCookie || "",
+    },
+    body: new URLSearchParams({
+      _csrf: adminCsrf || "",
+      integration: "withings",
+      field_name_0: "client_id",
+      field_value_0: "client-id-123",
+      field_name_1: "client_secret",
+      field_value_1: "client-secret-456",
+    }),
+  });
+  const userSecretVault = new Vault(join(testDir, "vault"), webVaultKey!);
+
+  test("web users: user integrations save under the user page", () => {
+    assert.equal(createUserSecret.status, 302);
+    assert.equal(createUserSecret.headers.get("location"), "/users/friend#secrets");
+    assert.deepEqual(userSecretVault.get("users/friend/withings/app"), {
+      client_id: "client-id-123",
+      client_secret: "client-secret-456",
+    });
+  });
+
+  const friendPageAfterSecret = await app.request("/users/friend", {
+    headers: { cookie: adminCookie || "" },
+  });
+  const friendPageAfterSecretHtml = await friendPageAfterSecret.text();
+
+  test("web users: integrations are shown on the user page", () => {
+    assert.equal(friendPageAfterSecret.status, 200);
+    assert.match(friendPageAfterSecretHtml, /Withings/);
+  });
+
+  const editUserSecret = await app.request("/users/friend/secrets/withings/edit", {
+    headers: { cookie: adminCookie || "" },
+  });
+  const editUserSecretHtml = await editUserSecret.text();
+
+  test("web users: integration edit form does not prefill secret values", () => {
+    assert.equal(editUserSecret.status, 200);
+    assert.doesNotMatch(editUserSecretHtml, /client-id-123/);
+    assert.match(editUserSecretHtml, /Leave blank to keep current value/);
+  });
+
+  const updateUserSecret = await app.request("/users/friend/secrets/withings", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      cookie: adminCookie || "",
+    },
+    body: new URLSearchParams({
+      _csrf: adminCsrf || "",
+      field_name_0: "client_id",
+      field_value_0: "updated-client-id",
+      field_name_1: "client_secret",
+      field_value_1: "",
+    }),
+  });
+  const updatedUserSecretVault = new Vault(join(testDir, "vault"), webVaultKey!);
+
+  test("web users: integration edits preserve hidden values when blank", () => {
+    assert.equal(updateUserSecret.status, 302);
+    assert.deepEqual(updatedUserSecretVault.get("users/friend/withings/app"), {
+      client_id: "updated-client-id",
+      client_secret: "client-secret-456",
+    });
   });
 
   const setupLockedAfterInit = await app.request(`/setup?token=${setupToken}`);
@@ -474,7 +541,7 @@ async function run() {
   const { initializeVault } = await import("../src/vault/index.js");
   const restoredKey = initializeVault(join(testDir, "vault"), "restore-password-123");
   const restoredVault = new Vault(join(testDir, "vault"), restoredKey);
-  restoredVault.set("telegram/bot_token", "restored-bot-token" as any);
+  restoredVault.set("system/telegram/bot_token", "restored-bot-token" as any);
   restoredVault.set("steve/users", {
     robert: {
       name: "robert",
@@ -514,7 +581,7 @@ async function run() {
   test("restored setup: preserves restored data and only adds dashboard auth", () => {
     assert.equal(restoredSetupPost.status, 200);
     assert.ok(restoredVaultAfter.get("steve/admin_auth"));
-    assert.equal(restoredVaultAfter.getString("telegram/bot_token"), "restored-bot-token");
+    assert.equal(restoredVaultAfter.getString("system/telegram/bot_token"), "restored-bot-token");
     assert.deepEqual(restoredVaultAfter.get("steve/users"), {
       robert: {
         name: "robert",

@@ -7,7 +7,7 @@ Your working directory is the current user's workspace. Everything is here:
 
 - `memory/` - This user's memories, logs, schedules
 - `shared/` - Shared household memories (visible to all users)
-- `skills/` - Shared skills. New skills you create here are available to all users.
+- `skills/` - This user's skills and templates
 - `SOUL.md` - Your personality
 - This file (AGENTS.md) - Your operating instructions
 
@@ -20,7 +20,7 @@ You MUST use the `send_message` tool for EVERY reply. The user is on Telegram. T
 ALWAYS use the MCP `run_script` tool to execute scripts. NEVER run scripts directly with bash, sh, or shell commands. Your container does not have the credentials or environment that `run_script` provides. If you try to run a script directly, it will fail.
 
 ## Secrets
-NEVER ask users for API keys, tokens, or credentials through Telegram. If a skill needs credentials that are missing, tell the user to add them at the secret manager (call `get_secret_url` tool to get the link). Credentials are injected into scripts automatically by the system. You never see or handle raw secrets.
+NEVER ask users for API keys, tokens, or credentials through Telegram. If a skill needs credentials that are missing, tell the user to add them on their Steve user page (call `get_secret_url` with the current `userName` to get the link). Credentials are injected into scripts automatically by the system. You never see or handle raw secrets.
 
 ## Skills — READ THEM
 Skills live in `skills/`. Each has a SKILL.md with full instructions.
@@ -34,7 +34,7 @@ Skills live in `skills/`. Each has a SKILL.md with full instructions.
 | `heartbeat` | HEARTBEAT: prefixed messages, periodic background checks |
 | `withings` | Scale data, syncing weight/body composition from Withings, "setup withings" |
 
-To create a new skill, read `skills/TEMPLATE.md` for the structure and conventions. Skills you create are shared across all users.
+To create a new skill, read `skills/TEMPLATE.md` for the structure and conventions. Skills you create here belong to the current user unless Steve installs them for everyone.
 
 ## Research First, Answer Second
 Before responding to anything non-trivial:

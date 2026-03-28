@@ -1,8 +1,10 @@
 import type { Hono } from "hono";
 import { existsSync } from "node:fs";
 import { config, getBaseUrl, getUserDir, refreshRuntimeConfigFromVault } from "../config.js";
+import { deleteUserAppSecret, getUserAppSecret, listUserAppSecrets, setUserAppSecret } from "../secrets.js";
 import { generateRuntimeConfig, setupUserWorkspace } from "../setup.js";
 import { addOrUpdateTelegramUser, ensureUser, getTelegramChatId, normalizeUsers, writeUserManifest } from "../users.js";
+import { mergeFieldsWithExistingValue, parseFields, valueToFields } from "./common.js";
 import { getOpenCodePorts, saveOpenCodePorts } from "./common.js";
 import {
   getUserAgentLogs,
@@ -11,8 +13,8 @@ import {
   startUserAgent,
   stopUserAgent,
 } from "./docker.js";
-import { renderUserDetail } from "./views.js";
-import { validateTelegramId, validateUserSlug } from "./validate.js";
+import { renderUserDetail, renderUserSecretEditForm, renderUserSecretNewForm } from "./views.js";
+import { validateIntegrationSlug, validateTelegramId, validateUserSlug } from "./validate.js";
 import type { WebRouteDeps } from "./types.js";
 
 export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
@@ -58,6 +60,106 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     refreshRuntimeConfigFromVault(vault);
     writeUserManifest(config.dataDir, updatedUsers);
     return c.redirect(`/users/${validatedName.value}`);
+  });
+
+  app.get("/users/:name/secrets/new", (c) => {
+    const session = deps.requireAdminPage(c);
+    if (session instanceof Response) return session;
+
+    const validatedName = validateUserSlug(c.req.param("name"));
+    if (!validatedName.ok) return c.redirect("/");
+    return c.html(renderUserSecretNewForm(validatedName.value, undefined, session.csrfToken));
+  });
+
+  app.post("/users/:name/secrets", async (c) => {
+    const result = await deps.requireAdminForm(c);
+    if (result instanceof Response) return result;
+
+    const vault = deps.getVault();
+    if (!vault) return c.redirect("/");
+
+    const validatedName = validateUserSlug(c.req.param("name"));
+    if (!validatedName.ok) return c.redirect("/");
+
+    const validatedIntegration = validateIntegrationSlug(String(result.body.integration || ""));
+    if (!validatedIntegration.ok) {
+      return c.html(renderUserSecretNewForm(validatedName.value, validatedIntegration.error, result.session.csrfToken), 400);
+    }
+
+    const fields = parseFields(result.body);
+    if (Object.keys(fields).length === 0) {
+      return c.html(renderUserSecretNewForm(validatedName.value, "At least one field is required", result.session.csrfToken), 400);
+    }
+
+    setUserAppSecret(vault, validatedName.value, validatedIntegration.value, fields);
+    return c.redirect(`/users/${validatedName.value}#secrets`);
+  });
+
+  app.get("/users/:name/secrets/:integration/edit", (c) => {
+    const session = deps.requireAdminPage(c);
+    if (session instanceof Response) return session;
+
+    const validatedName = validateUserSlug(c.req.param("name"));
+    const validatedIntegration = validateIntegrationSlug(c.req.param("integration"));
+    if (!validatedName.ok || !validatedIntegration.ok) return c.redirect("/");
+
+    const vault = deps.getVault();
+    const current = getUserAppSecret(vault, validatedName.value, validatedIntegration.value);
+    if (!current) return c.redirect(`/users/${validatedName.value}#secrets`);
+
+    return c.html(renderUserSecretEditForm(
+      validatedName.value,
+      validatedIntegration.value,
+      valueToFields(current.key, typeof current.value === "object" ? current.value as Record<string, unknown> : current.value),
+      undefined,
+      session.csrfToken,
+    ));
+  });
+
+  app.post("/users/:name/secrets/:integration", async (c) => {
+    const result = await deps.requireAdminForm(c);
+    if (result instanceof Response) return result;
+
+    const vault = deps.getVault();
+    if (!vault) return c.redirect("/");
+
+    const validatedName = validateUserSlug(c.req.param("name"));
+    const validatedIntegration = validateIntegrationSlug(c.req.param("integration"));
+    if (!validatedName.ok || !validatedIntegration.ok) return c.redirect("/");
+
+    const current = getUserAppSecret(vault, validatedName.value, validatedIntegration.value);
+    if (!current) return c.redirect(`/users/${validatedName.value}#secrets`);
+
+    const fields = parseFields(result.body);
+    if (Object.keys(fields).length === 0) {
+      return c.html(renderUserSecretEditForm(
+        validatedName.value,
+        validatedIntegration.value,
+        valueToFields(current.key, typeof current.value === "object" ? current.value as Record<string, unknown> : current.value),
+        "At least one field is required",
+        result.session.csrfToken,
+      ), 400);
+    }
+
+    const existingValue = typeof current.value === "object" ? current.value as Record<string, unknown> : current.value;
+    const nextValue = mergeFieldsWithExistingValue(existingValue, fields);
+    setUserAppSecret(vault, validatedName.value, validatedIntegration.value, nextValue as Record<string, string>);
+    return c.redirect(`/users/${validatedName.value}#secrets`);
+  });
+
+  app.post("/users/:name/secrets/:integration/delete", async (c) => {
+    const result = await deps.requireAdminForm(c);
+    if (result instanceof Response) return result;
+
+    const vault = deps.getVault();
+    if (!vault) return c.redirect("/");
+
+    const validatedName = validateUserSlug(c.req.param("name"));
+    const validatedIntegration = validateIntegrationSlug(c.req.param("integration"));
+    if (!validatedName.ok || !validatedIntegration.ok) return c.redirect("/");
+
+    deleteUserAppSecret(vault, validatedName.value, validatedIntegration.value);
+    return c.redirect(`/users/${validatedName.value}#secrets`);
   });
 
   app.post("/users/:name/start", async (c) => {
@@ -141,6 +243,7 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const users = normalizeUsers(deps.getVault()?.get("steve/users")).users;
     return c.html(renderUserDetail(name, ocStatus, ocUrl, session.csrfToken, {
       telegramChatId: getTelegramChatId(users, name),
+      userSecrets: listUserAppSecrets(deps.getVault(), name),
     }));
   });
 

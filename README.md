@@ -23,7 +23,7 @@ You (Telegram) → Steve → OpenCode (per-user container) → tools, memory, sk
 
 - **Autonomous, not just a chatbot.** Steve reads your files, runs scripts, manages reminders, and connects to APIs — all from a Telegram message.
 - **Zero-trust secrets.** The AI never sees your API keys. Credentials live in an encrypted vault. When a skill needs them, Steve injects them into scripts at runtime and strips them from output. If something needs setup, Steve sends you a link — you never paste secrets into chat.
-- **Multi-user isolation.** Each person gets their own AI container with separate memory, sessions, and context. Your household shares skills and grocery lists, not private conversations.
+- **Multi-user isolation.** Each person gets their own AI container with separate memory, sessions, context, and skills. Your household can share notes and lists without sharing private conversations.
 - **Extensible with markdown.** Skills are just a folder with a `SKILL.md` (natural language instructions) and optional scripts. No SDK, no API — write what you want the AI to do in plain English.
 
 ## What Steve Can Do
@@ -32,7 +32,7 @@ You (Telegram) → Steve → OpenCode (per-user container) → tools, memory, sk
 - Set up integrations like Withings or anything else you teach it with skills
 - Run reminders, check-ins, and recurring workflows
 - Read and write files in each user's workspace
-- Share household skills while keeping user sessions isolated
+- Share household notes and lists while keeping user sessions isolated
 
 ## Quick Start
 
@@ -102,7 +102,7 @@ Docker Network
 │                                                  │
 │  Volumes:                                        │
 │  steve-vault ── keyfile + encrypted secrets      │
-│  steve-data ─── users, skills, shared            │
+│  steve-data ─── users, shared                    │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -145,15 +145,15 @@ my-skill/
   templates/     # File templates for consistent formats
 ```
 
-Skills are shared across all users. Create them by asking Steve or add them manually. See `defaults/skills/TEMPLATE.md`.
+Each user has their own `skills/` directory inside their workspace. Steve can copy bundled default skills into every user workspace and update them later with `steve update skills`. See `defaults/skills/TEMPLATE.md`.
 
 ## Secrets & Security
 
 The AI is fully autonomous but never handles raw secrets. Here's how it works:
 
 1. You ask Steve to set up an integration (e.g., "connect my Withings scale")
-2. Steve checks if credentials exist. If not, it sends you a link to the web dashboard.
-3. You add the credentials there — never in chat.
+2. Steve checks if credentials exist. If not, it sends you to the right place in the web dashboard.
+3. You add user-specific credentials on that user's page and system credentials in Settings — never in chat.
 4. Steve's `run_script` tool injects them as env vars at runtime. Scripts that produce new credentials (e.g., OAuth tokens) use `save_to_vault` in their output — Steve saves them and strips the secrets before the AI sees anything.
 
 Vault is AES-256-GCM encrypted. A keyfile auto-decrypts on startup — password only on first run.
@@ -170,6 +170,8 @@ Vault is AES-256-GCM encrypted. A keyfile auto-decrypts on startup — password 
 steve up                 # Start Steve from published images
 steve down               # Stop Steve
 steve logs               # Follow logs
+steve update skills      # Copy bundled skills to every user
+steve update skills --force  # Overwrite bundled skills for every user
 steve setup-url          # Print the one-time setup URL
 steve backup             # Create encrypted backup
 steve restore <file>     # Restore encrypted backup
@@ -180,6 +182,7 @@ For development:
 ./steve build            # Build local images
 ./steve up               # Start Steve locally
 ./steve logs             # Follow local logs
+./steve update skills    # Copy bundled skills to every local user
 ./steve setup-url        # Print the local setup URL
 ./steve backup           # Create dev backup
 ./steve restore <file>   # Restore dev backup

@@ -13,6 +13,7 @@ import { setTelegramConnected, setVault } from "./health.js";
 import { TelegramChannel } from "./channels/telegram.js";
 import { registerChannel } from "./channels/index.js";
 import { hasKeyfile } from "./vault/index.js";
+import { getTelegramBotToken } from "./secrets.js";
 import { getAllowedTelegramIds, normalizeUsers, type UsersMap, writeUserManifest } from "./users.js";
 import type { Vault } from "./vault/index.js";
 
@@ -52,9 +53,9 @@ async function waitForConfiguration(vault: Vault, botToken: string, users: Users
   }
 
   p.log.warn("Open the one-time setup link to finish setup");
-  await waitFor(() => vault.has("telegram/bot_token") && vault.has("steve/users"));
+  await waitFor(() => !!getTelegramBotToken(vault) && vault.has("steve/users"));
 
-  const nextBotToken = vault.getString("telegram/bot_token");
+  const nextBotToken = getTelegramBotToken(vault);
   const nextUsers = normalizeUsers(vault.get("steve/users")).users;
   if (!nextBotToken || Object.keys(nextUsers).length === 0) {
     p.log.error("Configuration completed but runtime values were missing");

@@ -189,10 +189,25 @@ Commands:
   restore   Restore encrypted backup
   pull      Pull latest image referenced by compose
   update    Refresh compose file and pull latest image
+  update skills [--force]
+            Copy bundled skills into every user's workspace
   setup-url Print the one-time setup URL
   url       Show dashboard URL
   help      Show this help message
 USAGE
+}
+
+update_skills() {
+    local args=()
+    if [[ -n "\${1:-}" ]]; then
+        if [[ "\$1" == "--force" ]]; then
+            args+=("--force")
+        else
+            printf 'Usage: steve update skills [--force]\n' >&2
+            exit 1
+        fi
+    fi
+    docker_compose run --rm --no-deps steve node dist/update-skills.js "\${args[@]}"
 }
 
 run_image_tool() {
@@ -201,9 +216,13 @@ run_image_tool() {
     local mount_target=$3
     shift 3
     local image
+    local env_args=()
     image=$(get_env_value STEVE_IMAGE)
     if [[ -z "\$image" ]]; then
         image=$DEFAULT_STEVE_IMAGE
+    fi
+    if [[ -n "\${STEVE_BACKUP_PASSWORD:-}" ]]; then
+        env_args+=( -e "STEVE_BACKUP_PASSWORD=\$STEVE_BACKUP_PASSWORD" )
     fi
     docker run --rm -i \
         --user root \
@@ -211,10 +230,25 @@ run_image_tool() {
         -v /var/run/docker.sock:/var/run/docker.sock \
         -v "\$mount_dir":"\$mount_target" \
         -e STEVE_PROJECT="\${STEVE_PROJECT:-$DEFAULT_PROJECT}" \
+        \${env_args[@]+"\${env_args[@]}"} \
         "\$image" "\$@"
 }
 
+ensure_backup_password() {
+    if [[ -n "\${STEVE_BACKUP_PASSWORD:-}" ]]; then
+        return
+    fi
+    if [[ ! -t 0 ]]; then
+        printf 'Error: backup password required. Set STEVE_BACKUP_PASSWORD when running non-interactively.\n' >&2
+        exit 1
+    fi
+    read -r -s -p 'Backup password: ' STEVE_BACKUP_PASSWORD
+    printf '\n'
+    export STEVE_BACKUP_PASSWORD
+}
+
 backup_steve() {
+    ensure_backup_password
     local target=\${1:-}
     local host_dir host_file
     if [[ -n "\$target" ]]; then
@@ -231,6 +265,7 @@ restore_steve() {
         printf 'Usage: steve restore <backup-file>\n' >&2
         exit 1
     fi
+    ensure_backup_password
     docker_compose down >/dev/null 2>&1 || true
     local source=\$1
     local host_dir host_file
@@ -307,11 +342,15 @@ case "\$cmd" in
         docker_compose pull
         ;;
     update)
-        curl -fsSL "\$RAW_BASE/docker-compose.yml" -o "\$COMPOSE_FILE"
-        docker_compose pull
-        docker_compose up -d
-        show_url
-        maybe_show_setup_url
+        if [[ "\${2:-}" == "skills" ]]; then
+            update_skills "\${3:-}"
+        else
+            curl -fsSL "\$RAW_BASE/docker-compose.yml" -o "\$COMPOSE_FILE"
+            docker_compose pull
+            docker_compose up -d
+            show_url
+            maybe_show_setup_url
+        fi
         ;;
     setup-url)
         show_setup_url

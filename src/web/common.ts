@@ -1,10 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { config } from "../config.js";
-import type { Vault } from "../vault/index.js";
-import { isVisibleVaultKey, listVisibleVaultKeys } from "../vault/visible.js";
-
-export const RESERVED_VAULT_KEYS = new Set(["steve/admin_auth", "steve/users"]);
 const SETUP_TOKEN_FILE = "setup-token.json";
 
 export interface SetupTokenRecord {
@@ -33,20 +29,6 @@ export function parseFields(body: Record<string, string | File>): Record<string,
     const value = String(body[`field_value_${i}`] || "").trim();
     if (!name) continue;
     result[name] = value;
-  }
-  return result;
-}
-
-export function getFieldNames(v: Vault): Record<string, string[]> {
-  const result: Record<string, string[]> = {};
-  for (const key of v.list()) {
-    if (!isVisibleVaultKey(key)) continue;
-    const val = v.get(key);
-    if (val && typeof val === "object") {
-      result[key] = Object.keys(val);
-    } else if (typeof val === "string") {
-      result[key] = [key.split("/").pop() || "value"];
-    }
   }
   return result;
 }
@@ -89,10 +71,6 @@ export function mergeFieldsWithExistingValue(existingValue: Record<string, unkno
   }
 
   return nextRecord;
-}
-
-export function getVisibleVaultKeys(vault: Vault | null): string[] {
-  return listVisibleVaultKeys(vault);
 }
 
 function setupTokenPath(): string {

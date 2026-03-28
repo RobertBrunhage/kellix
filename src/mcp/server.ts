@@ -31,19 +31,10 @@ function discoverProjectScripts(projectRoot: string): Set<string> {
   return scripts;
 }
 
-/** Check if a script is inside a skill's scripts/ directory */
+/** Check if a script is inside a user's skills/scripts/ directory */
 function isSkillScript(scriptPath: string, dataDir: string): boolean {
   const resolved = resolve(scriptPath);
 
-  // Check under shared skills dir: skills/*/scripts/*.sh
-  const skillsDir = resolve(join(dataDir, "skills"));
-  if (resolved.startsWith(skillsDir + "/")) {
-    const relative = resolved.slice(skillsDir.length + 1);
-    const parts = relative.split("/");
-    return parts.length === 3 && parts[1] === "scripts" && parts[2].endsWith(".sh");
-  }
-
-  // Check under user workspaces (symlinks resolve to shared skills, but path may come as users/*/skills/*)
   const usersDir = resolve(join(dataDir, "users"));
   if (resolved.startsWith(usersDir + "/")) {
     const relative = resolved.slice(usersDir.length + 1);
@@ -163,11 +154,15 @@ export function createMcpServerFactory(mcpConfig: McpConfig, vault: Vault | null
 
   server.registerTool("get_secret_url", {
     description:
-      "Get the URL of the secret manager web UI. Use this when you need to direct a user to add or manage their API keys/credentials.",
-    inputSchema: {},
-  }, async () => {
+      "Get the URL where a user can add or manage secrets. Prefer passing the current userName so Steve links directly to that user's integrations.",
+    inputSchema: {
+      userName: z.string().optional().describe("Optional current user name to link directly to that user's integrations page"),
+      integration: z.string().optional().describe("Optional integration name; currently used only for better instructions alongside the returned URL"),
+    },
+  }, async ({ userName }) => {
+    const targetUser = userName ? toUserSlug(userName) : "";
     return {
-      content: [{ type: "text", text: getBaseUrl() }],
+      content: [{ type: "text", text: targetUser ? `${getBaseUrl()}/users/${encodeURIComponent(targetUser)}#secrets` : `${getBaseUrl()}/settings` }],
     };
   });
 
@@ -185,12 +180,18 @@ export function createMcpServerFactory(mcpConfig: McpConfig, vault: Vault | null
       : (args || []);
 
     // Normalize script path: OpenCode sends paths relative to its container
-    // (e.g. "skills/withings/scripts/setup.sh" or "/data/skills/withings/scripts/setup.sh")
-    // Skills are shared at /data/skills/
+    // (e.g. "skills/withings/scripts/setup.sh" or "/data/skills/withings/scripts/setup.sh").
+    // User skills live under that user's workspace at users/<user>/skills on the host.
     let scriptPath = script;
     const skillsMatch = script.match(/(?:^|\/)(skills\/.+)$/);
     if (skillsMatch) {
-      scriptPath = join(dataDir, skillsMatch[1]);
+      if (!userName) {
+        return {
+          content: [{ type: "text", text: "Error: Skill scripts require the current user name as the first argument." }],
+          isError: true,
+        };
+      }
+      scriptPath = join(dataDir, "users", userName, skillsMatch[1]);
     }
 
     const resolved = resolve(scriptPath);

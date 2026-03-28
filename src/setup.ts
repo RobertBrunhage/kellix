@@ -6,8 +6,9 @@ import {
   cpSync,
 } from "node:fs";
 import { join } from "node:path";
-import { steveDir, config } from "./config.js";
-import { validateProjectScriptsManifest, validateSkillDirectories } from "./skills.js";
+import { steveDir, config, getUserSkillsDir } from "./config.js";
+import { getTelegramBotToken } from "./secrets.js";
+import { syncBundledSkillsForUser, validateProjectScriptsManifest, validateSkillDirectories } from "./skills.js";
 import { Vault, readKeyfile, initializeVault, hasKeyfile } from "./vault/index.js";
 import { normalizeUsers, toUserSlug, type UsersMap, uniqueUserSlugs, writeUserManifest } from "./users.js";
 
@@ -17,22 +18,11 @@ function createDirectories() {
   mkdirSync(steveDir, { recursive: true });
   mkdirSync(config.usersDir, { recursive: true });
   mkdirSync(config.sharedDir, { recursive: true });
-  mkdirSync(config.skillsDir, { recursive: true });
-}
-
-/** Sync project default skills to the shared skills directory */
-function syncSkills() {
-  const src = config.defaultSkillsDir;
-  if (!existsSync(src)) return;
-
-  for (const entry of readdirSync(src)) {
-    cpSync(join(src, entry), join(config.skillsDir, entry), { recursive: true });
-  }
 }
 
 export function setupUserWorkspace(userName: string) {
   const userDir = join(config.usersDir, toUserSlug(userName));
-  for (const sub of ["memory", "memory/daily", "memory/nutrition", "memory/training", "memory/body-measurements"]) {
+  for (const sub of ["memory", "memory/daily", "memory/nutrition", "memory/training", "memory/body-measurements", "skills"]) {
     mkdirSync(join(userDir, sub), { recursive: true });
   }
 
@@ -49,7 +39,7 @@ export function setupUserWorkspace(userName: string) {
     }
   }
 
-  // shared/ and skills/ are mounted via Docker volumes, no symlinks needed
+  syncBundledSkillsForUser(config.defaultSkillsDir, getUserSkillsDir(userName));
 
   // Copy OpenCode plugins for memory flush
   const pluginSrc = join(config.defaultsDir, "opencode-plugin");
@@ -160,7 +150,7 @@ export async function runSetup(): Promise<SetupResult> {
     process.exit(1);
   }
 
-  const botToken = vault.getString("telegram/bot_token");
+  const botToken = getTelegramBotToken(vault);
   const normalizedUsers = normalizeUsers(vault.get("steve/users"));
   const users = normalizedUsers.users;
   if (normalizedUsers.migrated && Object.keys(users).length > 0) {
@@ -174,11 +164,10 @@ export async function runSetup(): Promise<SetupResult> {
 
   // Full setup
   createDirectories();
-  syncSkills();
-  validateSkillDirectories(config.skillsDir);
   validateProjectScriptsManifest(config.projectRoot);
   for (const userName of uniqueUserSlugs(users)) {
     setupUserWorkspace(userName);
+    validateSkillDirectories(getUserSkillsDir(userName));
   }
   generateRuntimeConfig(users);
 

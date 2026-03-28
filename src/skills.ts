@@ -1,9 +1,15 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type { SkillCapabilityManifest } from "./mcp/script-security.js";
+import { loadJsonSkillManifest, loadSkillManifestFromMarkdown } from "./skill-manifest.js";
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return !!value && typeof value === "object" && !Array.isArray(value);
+export interface SyncBundledSkillsOptions {
+  force?: boolean;
+}
+
+export interface SyncBundledSkillsResult {
+  installed: string[];
+  updated: string[];
+  skipped: string[];
 }
 
 function fail(message: string): never {
@@ -11,22 +17,10 @@ function fail(message: string): never {
 }
 
 export function validateSkillManifest(manifestPath: string, scriptsDir: string): void {
-  const raw = readFileSync(manifestPath, "utf-8");
-  let parsed: SkillCapabilityManifest;
-
-  try {
-    parsed = JSON.parse(raw) as SkillCapabilityManifest;
-  } catch (error) {
-    fail(`Invalid JSON in ${manifestPath}: ${error instanceof Error ? error.message : error}`);
-  }
-
-  if (!isRecord(parsed)) {
-    fail(`Invalid skill manifest ${manifestPath}: expected an object`);
-  }
-
-  if (parsed.scripts !== undefined && !isRecord(parsed.scripts)) {
-    fail(`Invalid skill manifest ${manifestPath}: scripts must be an object`);
-  }
+  const parsed = manifestPath.endsWith(".md")
+    ? loadSkillManifestFromMarkdown(manifestPath)
+    : loadJsonSkillManifest(manifestPath);
+  if (!parsed) return;
 
   for (const [scriptName, config] of Object.entries(parsed.scripts ?? {})) {
     if (!scriptName.endsWith(".sh")) {
@@ -37,30 +31,6 @@ export function validateSkillManifest(manifestPath: string, scriptsDir: string):
       fail(`Invalid skill manifest ${manifestPath}: script ${scriptName} does not exist`);
     }
 
-    if (!isRecord(config)) {
-      fail(`Invalid skill manifest ${manifestPath}: script ${scriptName} must be an object`);
-    }
-
-    if (config.redactOutput !== undefined && typeof config.redactOutput !== "boolean") {
-      fail(`Invalid skill manifest ${manifestPath}: redactOutput for ${scriptName} must be boolean`);
-    }
-
-    if (config.secrets !== undefined) {
-      if (!Array.isArray(config.secrets)) {
-        fail(`Invalid skill manifest ${manifestPath}: secrets for ${scriptName} must be an array`);
-      }
-
-      for (const secret of config.secrets) {
-        if (!isRecord(secret) || typeof secret.key !== "string" || !secret.key.trim()) {
-          fail(`Invalid skill manifest ${manifestPath}: each secret for ${scriptName} must include a key`);
-        }
-        if (secret.fields !== undefined) {
-          if (!Array.isArray(secret.fields) || secret.fields.some((field) => typeof field !== "string" || !field.trim())) {
-            fail(`Invalid skill manifest ${manifestPath}: fields for ${scriptName} must be a string array`);
-          }
-        }
-      }
-    }
   }
 }
 
@@ -70,7 +40,7 @@ export function validateSkillDirectories(skillsDir: string): void {
   for (const entry of readdirSync(skillsDir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const skillDir = join(skillsDir, entry.name);
-    const manifestPath = join(skillDir, "skill.json");
+    const manifestPath = join(skillDir, "SKILL.md");
     if (!existsSync(manifestPath)) continue;
     validateSkillManifest(manifestPath, join(skillDir, "scripts"));
   }
@@ -81,4 +51,45 @@ export function validateProjectScriptsManifest(projectRoot: string): void {
   const manifestPath = join(scriptsDir, "manifest.json");
   if (!existsSync(manifestPath)) return;
   validateSkillManifest(manifestPath, scriptsDir);
+}
+
+export function syncBundledSkillsForUser(
+  defaultSkillsDir: string,
+  userSkillsDir: string,
+  options: SyncBundledSkillsOptions = {},
+): SyncBundledSkillsResult {
+  const result: SyncBundledSkillsResult = {
+    installed: [],
+    updated: [],
+    skipped: [],
+  };
+
+  if (!existsSync(defaultSkillsDir)) {
+    return result;
+  }
+
+  const force = options.force ?? false;
+  mkdirSync(userSkillsDir, { recursive: true });
+
+  for (const entry of readdirSync(defaultSkillsDir)) {
+    const sourcePath = join(defaultSkillsDir, entry);
+    const targetPath = join(userSkillsDir, entry);
+    const alreadyExists = existsSync(targetPath);
+
+    if (alreadyExists && !force) {
+      result.skipped.push(entry);
+      continue;
+    }
+
+    if (alreadyExists) {
+      rmSync(targetPath, { recursive: true, force: true });
+      result.updated.push(entry);
+    } else {
+      result.installed.push(entry);
+    }
+
+    cpSync(sourcePath, targetPath, { recursive: true });
+  }
+
+  return result;
 }

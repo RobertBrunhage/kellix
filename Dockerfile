@@ -14,10 +14,11 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
-# Use existing node user (uid 1000) and set ownership
-# Add to root group for Docker socket access
-RUN mkdir -p /data /vault && chown -R node:node /app /data /vault \
-    && usermod -aG root node
+# Prepare writable mount points.
+# Steve shares the data volume with per-user agent containers, which may create
+# root-owned files. Running Steve as root avoids recurring EACCES failures when
+# it later needs to update user workspaces or bundled skills.
+RUN mkdir -p /data /vault
 
 VOLUME ["/data", "/vault"]
 
@@ -25,5 +26,4 @@ ENV STEVE_DIR=/data
 
 EXPOSE 3000 3100
 
-USER node
 CMD ["node", "dist/index.js"]

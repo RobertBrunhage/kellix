@@ -2,6 +2,7 @@ import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
 import type { Vault } from "./vault/index.js";
+import { getTelegramBotToken } from "./secrets.js";
 import { getAllowedTelegramIds, normalizeUsers, toUserSlug, type UsersMap } from "./users.js";
 
 
@@ -21,7 +22,6 @@ export interface SteveConfig {
   dataDir: string;
   usersDir: string;
   sharedDir: string;
-  skillsDir: string;
   defaultsDir: string;
   defaultSkillsDir: string;
   vaultDir: string;
@@ -34,6 +34,11 @@ export interface SteveConfig {
 /** Get the workspace directory for a specific user */
 export function getUserDir(userName: string): string {
   return join(config.usersDir, toUserSlug(userName));
+}
+
+/** Get the skills directory for a specific user */
+export function getUserSkillsDir(userName: string): string {
+  return join(getUserDir(userName), "skills");
 }
 
 /** Runtime config set after vault is unlocked */
@@ -53,7 +58,7 @@ export function setRuntimeConfig(rc: RuntimeConfig) {
 export function refreshRuntimeConfigFromVault(vault: Vault) {
   const users = normalizeUsers(vault.get("steve/users")).users;
   setRuntimeConfig({
-    botToken: vault.getString("telegram/bot_token") || "",
+    botToken: getTelegramBotToken(vault) || "",
     users,
     allowedUserIds: getAllowedTelegramIds(users),
   });
@@ -70,7 +75,6 @@ export const config: SteveConfig = Object.freeze({
   dataDir: steveDir,
   usersDir: join(steveDir, "users"),
   sharedDir: join(steveDir, "shared"),
-  skillsDir: join(steveDir, "skills"),
   defaultsDir: join(projectRoot, "defaults"),
   defaultSkillsDir: join(projectRoot, "defaults/skills"),
   vaultDir,

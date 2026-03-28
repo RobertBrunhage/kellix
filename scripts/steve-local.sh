@@ -108,8 +108,22 @@ run_image_tool() {
         "$LOCAL_STEVE_IMAGE" "$@"
 }
 
+ensure_backup_password() {
+    if [[ -n "${STEVE_BACKUP_PASSWORD:-}" ]]; then
+        return
+    fi
+    if [[ ! -t 0 ]]; then
+        printf 'Error: backup password required. Set STEVE_BACKUP_PASSWORD when running non-interactively.\n' >&2
+        exit 1
+    fi
+    read -r -s -p 'Backup password: ' STEVE_BACKUP_PASSWORD
+    printf '\n'
+    export STEVE_BACKUP_PASSWORD
+}
+
 backup_steve() {
     ensure_local_images
+    ensure_backup_password
     local target=${1:-}
     local host_dir host_file
     if [[ -n "$target" ]]; then
@@ -127,6 +141,7 @@ restore_steve() {
         exit 1
     fi
     ensure_local_images
+    ensure_backup_password
     docker_compose down >/dev/null 2>&1 || true
     local source=$1
     local host_dir host_file
@@ -164,10 +179,26 @@ Commands:
   ps         Show container status
   backup     Create encrypted backup from local dev data
   restore    Restore encrypted backup into local dev data
+  update skills [--force]
+             Copy bundled skills into every local user workspace
   setup-url  Print the one-time setup URL
   url        Show dashboard URL
   help       Show this help message
 EOF
+}
+
+update_skills() {
+    ensure_local_images
+    local args=()
+    if [[ -n "${1:-}" ]]; then
+        if [[ "$1" == "--force" ]]; then
+            args+=("--force")
+        else
+            printf 'Usage: ./steve update skills [--force]\n' >&2
+            exit 1
+        fi
+    fi
+    docker_compose run --rm --no-deps steve node dist/update-skills.js "${args[@]}"
 }
 
 cmd=${1:-help}
@@ -201,6 +232,14 @@ case "$cmd" in
         ;;
     restore)
         restore_steve "${2:-}"
+        ;;
+    update)
+        if [[ "${2:-}" == "skills" ]]; then
+            update_skills "${3:-}"
+        else
+            printf 'Usage: ./steve update skills [--force]\n' >&2
+            exit 1
+        fi
         ;;
     setup-url)
         show_setup_url

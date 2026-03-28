@@ -44,14 +44,14 @@ async function main() {
     });
     assert.equal(setupPost.res.status, 200);
 
-    const secretsPage = await requestText(`http://127.0.0.1:${testEnv.webPort}/secrets/new`, { jar });
+    const secretsPage = await requestText(`http://127.0.0.1:${testEnv.webPort}/users/robert/secrets/new`, { jar });
     const secretsCsrf = extractCsrf(secretsPage.text);
-    const createSecret = await requestText(`http://127.0.0.1:${testEnv.webPort}/secrets`, {
+    const createSecret = await requestText(`http://127.0.0.1:${testEnv.webPort}/users/robert/secrets`, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
         _csrf: secretsCsrf,
-        key: "robert/test-service",
+        integration: "test-service",
         field_name_0: "api_key",
         field_value_0: "secret-value",
       }),
@@ -86,9 +86,9 @@ async function main() {
     assert.equal(loginPage.res.status, 200);
     assert.equal(loginPost.res.status, 302);
 
-    const restoredSecrets = await requestText(`http://127.0.0.1:${testEnv.webPort}/secrets/list`, { jar });
+    const restoredSecrets = await requestText(`http://127.0.0.1:${testEnv.webPort}/users/robert`, { jar });
     assert.equal(restoredSecrets.res.status, 200);
-    assert.ok(restoredSecrets.text.includes("robert/test-service"));
+    assert.ok(restoredSecrets.text.includes("Test Service"));
 
     console.log("E2E restore flow passed");
   } finally {

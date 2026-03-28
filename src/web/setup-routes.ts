@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import { config, getTelegramApiBase } from "../config.js";
+import { getTelegramBotToken, setTelegramBotToken } from "../secrets.js";
 import { Vault, initializeVault } from "../vault/index.js";
 import { getHealth } from "../health.js";
 import { ensureUser, normalizeUsers, type UsersMap } from "../users.js";
@@ -14,7 +15,7 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
   function needsDashboardPasswordOnly(): boolean {
     const vault = deps.getVault();
     if (!vault) return false;
-    const hasBotToken = !!vault.getString("telegram/bot_token");
+    const hasBotToken = !!getTelegramBotToken(vault);
     const hasUsers = Object.keys(normalizeUsers(vault.get("steve/users")).users).length > 0;
     return hasBotToken && hasUsers;
   }
@@ -92,7 +93,7 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
       if (!vault) {
         return c.html(deps.buildSetupView(session.csrfToken, "Vault not available for restored setup", authOnly), 500);
       }
-      botToken = vault.getString("telegram/bot_token") || "";
+      botToken = getTelegramBotToken(vault) || "";
       users = normalizeUsers(vault.get("steve/users")).users;
     } else {
       botToken = String(body.bot_token || "").trim();
@@ -137,7 +138,7 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
     }
 
     vault.set(ADMIN_AUTH_KEY, hashPassword(password) as any);
-    vault.set("telegram/bot_token", botToken as any);
+    setTelegramBotToken(vault, botToken);
     vault.set("steve/users", users as any);
 
     deps.clearBootstrapSession(c);

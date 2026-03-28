@@ -56,4 +56,4 @@ EXPIRES_IN=$(echo "$RESPONSE" | jq -r '.body.expires_in')
 EXPIRES_AT=$(( $(date +%s) + EXPIRES_IN ))
 
 # Output tokens via save_to_vault convention — Steve strips this before AI sees it
-echo "{\"status\":\"ready\",\"message\":\"Withings authorized and tokens saved.\",\"save_to_vault\":{\"key\":\"${USERNAME}/withings-tokens\",\"value\":{\"access_token\":\"${ACCESS_TOKEN}\",\"refresh_token\":\"${REFRESH_TOKEN}\",\"expires_at\":\"${EXPIRES_AT}\"}}}"
+echo "{\"status\":\"ready\",\"message\":\"Withings authorized and tokens saved.\",\"save_to_vault\":{\"key\":\"users/${USERNAME}/withings/tokens\",\"value\":{\"access_token\":\"${ACCESS_TOKEN}\",\"refresh_token\":\"${REFRESH_TOKEN}\",\"expires_at\":\"${EXPIRES_AT}\"}}}"

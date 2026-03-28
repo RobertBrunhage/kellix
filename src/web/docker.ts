@@ -44,7 +44,7 @@ export function startExistingUserAgent(composeProject: string, name: string): bo
 
 export function startUserAgent(opts: StartUserAgentOptions): void {
   const userDir = join(opts.dataDir, "users", opts.name);
-  for (const sub of ["memory", "memory/daily", "memory/nutrition", "memory/training", "memory/body-measurements", ".opencode-data"]) {
+  for (const sub of ["memory", "memory/daily", "memory/nutrition", "memory/training", "memory/body-measurements", "skills", ".opencode-data"]) {
     mkdirSync(join(userDir, sub), { recursive: true });
   }
 
@@ -64,11 +64,6 @@ export function startUserAgent(opts: StartUserAgentOptions): void {
     "        target: /data",
     "        volume:",
     `          subpath: users/${opts.name}`,
-    "      - type: volume",
-    `        source: ${opts.composeProject}_steve-data`,
-    "        target: /data/skills",
-    "        volume:",
-    "          subpath: skills",
     "      - type: volume",
     `        source: ${opts.composeProject}_steve-data`,
     "        target: /data/shared",
