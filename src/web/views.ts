@@ -100,7 +100,10 @@ export function renderHome(health: HealthStatus, csrfToken: string): string {
   return layout("Dashboard", `
     ${nav(csrfToken)}
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-xl font-semibold text-white">Steve</h1>
+      <div>
+        <h1 class="text-xl font-semibold text-white">Steve</h1>
+        <p class="text-sm text-zinc-500 mt-1">Manage users, integrations, and the household runtime from one place.</p>
+      </div>
       <span class="text-xs px-2.5 py-1 rounded-full ${healthy ? "bg-emerald-950 text-emerald-300 border border-emerald-800" : "bg-red-950 text-red-300 border border-red-800"}">
         ${healthy ? "Healthy" : "Degraded"}
       </span>
@@ -115,7 +118,7 @@ export function renderHome(health: HealthStatus, csrfToken: string): string {
         </div>
         <div class="flex items-center gap-2">
           ${dot(oc.status)}
-          <span class="text-xs ${oc.status === "ok" ? "text-zinc-400" : "text-amber-400"}">${oc.status === "ok" ? "Agent running" : "Needs setup"}</span>
+          <span class="text-xs ${oc.status === "ok" ? "text-zinc-400" : "text-amber-400"}">${oc.status === "ok" ? "Agent running" : "Open user page"}</span>
         </div>
       </a>`).join("")}
 
@@ -167,7 +170,7 @@ export function renderSettings(telegramBotToken: string | null, csrfToken: strin
     <div class="flex items-center justify-between mb-8">
       <div>
         <h1 class="text-xl font-semibold text-white">Settings</h1>
-        <p class="text-sm text-zinc-500 mt-1">System-level secrets and configuration for Steve.</p>
+        <p class="text-sm text-zinc-500 mt-1">System-wide settings and credentials that apply to every user.</p>
       </div>
     </div>
     ${errorHtml}
@@ -249,7 +252,7 @@ export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, 
       <div class="flex items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-sm font-medium text-white">Connections</h2>
-          <p class="text-xs text-zinc-500 mt-1">Link messaging services to this Steve user.</p>
+          <p class="text-xs text-zinc-500 mt-1">Connect Telegram and other future channels for this user.</p>
         </div>
         <span class="text-xs px-2.5 py-1 rounded-full ${telegramConnected ? "bg-emerald-950 text-emerald-300 border border-emerald-800" : "bg-zinc-900 text-zinc-400 border border-border"}">
           Telegram ${telegramConnected ? "connected" : "not connected"}
@@ -258,21 +261,21 @@ export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, 
       <form method="POST" action="/users/${encodeURIComponent(name)}/telegram" class="flex gap-3 items-end">
         ${hiddenCsrf(csrfToken)}
         <div class="flex-1">
-          <label class="block text-sm text-zinc-400 mb-1">Telegram account ID</label>
+          <label class="block text-sm text-zinc-400 mb-1">Telegram chat ID</label>
           <input type="text" name="telegram_id" placeholder="Get it from @userinfobot" value="${escapeHtml(options?.telegramChatId || "")}"
             class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
         </div>
         <button type="submit"
           class="px-4 py-2 text-sm rounded-lg bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition-colors whitespace-nowrap">${telegramConnected ? "Update Telegram" : "Connect Telegram"}</button>
       </form>
-      <p class="text-xs text-zinc-600 mt-2">This links the Steve user <code>${escapeHtml(name)}</code> to a Telegram account. More channels can live here later too.</p>
+      <p class="text-xs text-zinc-600 mt-2">This links the Steve user <code>${escapeHtml(name)}</code> to one Telegram chat. Use <strong class="text-zinc-400">@userinfobot</strong> to find the ID if you need it.</p>
     </div>
 
     <div id="secrets" class="bg-surface-card border border-border rounded-lg p-5 mb-6">
       <div class="flex items-center justify-between gap-4 mb-4">
         <div>
           <h2 class="text-sm font-medium text-white">Secrets & Integrations</h2>
-          <p class="text-xs text-zinc-500 mt-1">Store this user's integration credentials here. Tokens stay managed behind the scenes.</p>
+          <p class="text-xs text-zinc-500 mt-1">Store this user's app credentials here. OAuth tokens stay managed behind the scenes.</p>
         </div>
         <a href="/users/${encodeURIComponent(name)}/secrets/new"
           class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors whitespace-nowrap">Add Integration</a>
@@ -294,11 +297,12 @@ export function renderUserDetail(name: string, ocStatus: string, ocUrl: string, 
     </div>` : `
     <div class="bg-surface-card border border-border rounded-lg p-5 mb-6">
       <h2 class="text-sm font-medium text-white mb-2">OpenCode</h2>
-      <p class="text-sm text-zinc-500">Not available — container may not be running</p>
+      <p class="text-sm text-zinc-500">Not available right now. Start the agent to load OpenCode here.</p>
     </div>`}
 
     <div class="bg-surface-card border border-border rounded-lg p-5">
-      <h2 class="text-sm font-medium text-white mb-3">Container Logs</h2>
+      <h2 class="text-sm font-medium text-white mb-1">Agent Logs</h2>
+      <p class="text-xs text-zinc-600 mb-3">Recent container output for this user's runtime.</p>
       <pre id="logs" class="bg-black/50 rounded-lg p-4 text-xs text-zinc-400 font-mono overflow-auto max-h-60 whitespace-pre-wrap">Loading...</pre>
     </div>
 
@@ -330,10 +334,12 @@ export function renderUserSecretNewForm(userName: string, error: string | undefi
         <label class="block text-sm text-zinc-400 mb-1">Integration name</label>
         <input type="text" id="integration" name="integration" placeholder="e.g. withings" required
           class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+        <p class="text-xs text-zinc-600 mt-2">Use a short slug like <code>withings</code> or <code>weather</code>.</p>
       </div>
 
       <div class="mt-6">
         <label class="block text-sm text-zinc-400 mb-1">Fields</label>
+        <p class="text-xs text-zinc-600 mb-3">Add the app credentials this integration needs. Tokens created later during auth are stored automatically.</p>
         <div id="fields">
           <div class="flex gap-2 items-center mt-2 group">
             <input type="text" name="field_name_0" placeholder="e.g. client_id" required
