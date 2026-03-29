@@ -7,7 +7,7 @@ ENV_DIR="$REPO_ROOT/.steve-dev"
 ENV_FILE="$ENV_DIR/.env"
 COMPOSE_FILE="$REPO_ROOT/docker-compose.yml"
 PROJECT_NAME=${STEVE_PROJECT:-steve-dev}
-WEB_PORT=${STEVE_WEB_PORT:-3001}
+WEB_PORT=${STEVE_WEB_PORT:-7839}
 OPENCODE_PORT_BASE=${STEVE_OPENCODE_PORT_BASE:-4456}
 TELEGRAM_API_BASE=${STEVE_TELEGRAM_API_BASE:-https://api.telegram.org}
 
@@ -46,6 +46,17 @@ EOF
 docker_compose() {
     ensure_env
     docker compose --project-name "$PROJECT_NAME" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+}
+
+remove_user_agents() {
+    local ids=()
+    while IFS= read -r id; do
+        [[ -n "$id" ]] && ids+=("$id")
+    done < <(docker ps -aq --filter "name=${PROJECT_NAME}-opencode-" 2>/dev/null || true)
+
+    if [[ ${#ids[@]} -gt 0 ]]; then
+        docker rm -f "${ids[@]}" >/dev/null
+    fi
 }
 
 show_url() {
@@ -143,6 +154,7 @@ restore_steve() {
     fi
     ensure_local_images
     ensure_backup_password
+    remove_user_agents
     docker_compose down >/dev/null 2>&1 || true
     local source=$1
     local host_dir host_file
@@ -215,6 +227,7 @@ case "$cmd" in
         maybe_show_setup_url
         ;;
     down)
+        remove_user_agents
         docker_compose down
         ;;
     restart)

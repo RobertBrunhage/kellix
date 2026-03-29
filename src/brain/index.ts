@@ -118,9 +118,18 @@ export class Brain {
   }
 
   private async promptSession(oc: OpencodeClient, sessionId: string, parts: PromptPart[]) {
+    const configRes = await oc.config.get({});
+    const configuredModel = configRes.data?.model;
+    const model = configuredModel && configuredModel.includes("/")
+      ? {
+          providerID: configuredModel.split("/")[0]!,
+          modelID: configuredModel.slice(configuredModel.indexOf("/") + 1),
+        }
+      : undefined;
+
     return oc.session.prompt({
       path: { id: sessionId },
-      body: { parts },
+      body: { parts, agent: "steve", model },
     });
   }
 

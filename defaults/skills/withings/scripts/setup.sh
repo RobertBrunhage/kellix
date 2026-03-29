@@ -4,7 +4,7 @@
 set -euo pipefail
 
 USERNAME="${1:?Usage: setup.sh <userName>}"
-BASE_URL="${STEVE_BASE_URL:-http://localhost:3000}"
+BASE_URL="${STEVE_BASE_URL:-http://localhost:7838}"
 
 # Step 1: Check client credentials
 CLIENT_ID="${STEVE_CRED_CLIENT_ID:-}"

@@ -3,68 +3,216 @@
 </p>
 
 <p align="center">
-  <strong>Your autonomous household AI assistant.</strong><br>
-  Telegram-first, OpenCode-powered, secret-safe by default.
+  <strong>Your self-hosted household AI assistant.</strong><br>
+  Autonomous, OpenCode-powered, secret-safe by default.
 </p>
 
 # Steve
 
-A fully autonomous household AI assistant you talk to on Telegram. Steve can set up integrations, manage schedules, coach your health, and run workflows for your household without you ever handing over an API key or password in chat.
+Steve is a self-hosted household AI assistant you talk to on Telegram.
 
-You tell Steve what you need. If a skill requires credentials, Steve sends you a link to the web dashboard where you add them securely. The AI orchestrates everything but never sees your secrets.
+It can set up integrations, manage reminders, keep per-person memory, run recurring routines, and handle real workflows for your home - without asking you to paste API keys into chat.
 
-Think OpenClaw-style autonomy, but with a household-first UX, per-user isolation, and a real secret vault.
+If Steve needs credentials, it sends you straight to the right place in the dashboard. You add them there, Steve uses them securely, and the AI never sees the raw secret values.
 
+Think OpenClaw-style autonomy, but simpler, more household-focused, and easier to trust.
+
+## Why People Try Steve
+
+- **It feels like an assistant, not a chatbot.** Steve can actually do things: run scripts, keep memory, manage schedules, and follow up later.
+- **It is built for real people, not one power user.** Each person gets their own isolated agent, memory, skills, and integrations.
+- **Secrets stay out of chat.** Steve handles setup through the dashboard and injects credentials into scripts only when needed.
+- **You can teach it new capabilities with markdown.** Skills are plain folders with a `SKILL.md` and optional scripts.
+- **It runs in your own environment.** Backups, restores, local hosting, and LAN access are all built in.
+
+## What It Feels Like
+
+```text
+You: "connect my Withings scale"
+Steve: "I need your app credentials - open this page"
+You: add them in the dashboard
+Steve: finishes setup, stores tokens securely, and keeps working
 ```
-You (Telegram) → Steve → OpenCode (per-user container) → tools, memory, skills → replies
+
+```text
+You: "remind me every Monday to review my training"
+Steve: creates the recurring job and follows up automatically
 ```
 
-## Why It Feels Different
+```text
+You: "what was my weight trend this week?"
+Steve: checks your memory + integrations and replies with context
+```
 
-- **Autonomous, not just a chatbot.** Steve reads your files, runs scripts, manages reminders, and connects to APIs — all from a Telegram message.
-- **Zero-trust secrets.** The AI never sees your API keys. Credentials live in an encrypted vault. When a skill needs them, Steve injects them into scripts at runtime and strips them from output. If something needs setup, Steve sends you a link — you never paste secrets into chat.
-- **Multi-user isolation.** Each person gets their own AI container with separate memory, sessions, context, and skills. Your household can share notes and lists without sharing private conversations.
-- **Extensible with markdown.** Skills are just a folder with a `SKILL.md` (natural language instructions) and optional scripts. No SDK, no API — write what you want the AI to do in plain English.
+## What You Get
 
-## What Steve Can Do
+- Telegram-based assistant UX
+- Per-user isolated OpenCode containers
+- Private user memory plus optional shared household files
+- Dashboard for setup, integrations, jobs, and runtime control
+- Encrypted vault for secrets
+- Markdown-driven skills with script support
+- Built-in backup and restore
 
-- Talk to you in Telegram and keep working memory per person
-- Set up integrations like Withings or anything else you teach it with skills
-- Run reminders, check-ins, and recurring workflows
-- Read and write files in each user's workspace
-- Share household notes and lists while keeping user sessions isolated
+## Install In A Minute
 
-## Quick Start
-
-**Prerequisites:** Docker
+**Prerequisite:** Docker
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/robertbrunhage/steve/main/install.sh | bash
 ```
 
-That installs a local `steve` helper command, downloads the compose file into `~/.steve`, and starts the app.
+That installs a local `steve` command, downloads the runtime into `~/.steve`, and starts Steve with the latest published release.
+
+Useful commands:
 
 ```bash
-steve setup-url  # Print the one-time setup URL
-steve logs       # Follow logs
-steve down       # Stop Steve
-steve update     # Refresh compose and pull latest image
+steve logs
+steve update
+steve backup
+steve restore <file>
 ```
 
 First run:
 
-1. Start Steve
-2. Open the one-time setup URL from `steve setup-url` or `steve logs`
+1. Run the install command
+2. Open the setup URL shown in the terminal
 3. Create your dashboard password
-4. Add the Telegram bot token
+4. Add your Telegram bot token
 5. Create your first user
-6. Open that user page and connect Telegram
+6. Open that user's page and connect Telegram
+7. Start messaging Steve
 
-Steve auto-detects your machine name for LAN access and stores it as `STEVE_HOSTNAME`, so the dashboard will usually be at `http://<your-machine-name>.local:3000`.
+If you need it again later, you can still run:
 
-If `.local` is flaky on your network, `http://localhost:3000` works too.
+```bash
+steve setup-url
+```
 
-### From Source (for development)
+Steve usually auto-detects a LAN-friendly URL like `http://<your-machine>.local:7838`.
+
+If `.local` is flaky on your network, `http://localhost:7838` works too.
+
+## What Makes Steve Different
+
+### 1. Secrets Never Go Through Chat
+
+When Steve needs credentials:
+
+1. it notices what is missing
+2. it links you to the right dashboard page
+3. you add the credentials there
+4. scripts receive only the exact fields they need at runtime
+
+The AI orchestrates the workflow, but never handles the raw secret values.
+
+### 2. Every User Gets Their Own Agent
+
+Each user gets their own:
+
+- OpenCode container
+- workspace
+- memory
+- integrations
+- skills
+
+That means your household can share useful things like notes and lists without sharing private context by accident.
+
+### 3. Skills Are Simple
+
+A skill is just a directory like this:
+
+```text
+my-skill/
+  SKILL.md
+  scripts/
+  templates/
+```
+
+`SKILL.md` holds both the instructions and the machine-readable frontmatter Steve needs. No SDK required.
+
+### 4. It Is Actually Built To Live With You
+
+Steve is not trying to be a public SaaS agent platform.
+
+It is designed for trusted local or household use:
+
+- LAN-friendly `.local` URLs
+- one household admin dashboard
+- backup/restore built in
+- no need to expose it publicly
+
+## How It Works
+
+At a high level:
+
+```text
+You message Steve -> Steve picks the right user -> OpenCode does the work -> Steve replies
+```
+
+Under the hood, Steve handles:
+
+- user routing
+- integrations and secrets
+- scheduled jobs and routines
+- per-user workspaces and memory
+- dashboard setup and control
+
+Each user gets their own OpenCode container, their own workspace, and their own memory.
+
+## Memory And Skills
+
+Each user's workspace has structured long-term memory, for example:
+
+```text
+memory/
+  profile.md
+  schedule.md
+  daily/
+  training/
+  nutrition/
+  body-measurements/
+```
+
+Bundled skills can be synced into every user workspace with:
+
+```bash
+steve update skills
+steve update skills --force
+```
+
+## Backup And Restore
+
+- `steve backup` / `steve restore <file>` for the installed runtime
+- `./steve backup` / `./steve restore <file>` for local development
+- restore keeps users, workspaces, and secrets together
+
+If needed after restore, Steve only asks you to finish dashboard password setup.
+
+## Use Ollama
+
+If you want to run Steve with a local model on your own machine, the simplest first version is to use Ollama.
+
+1. Install and start Ollama on the host machine
+2. Pull a model, for example:
+
+```bash
+ollama pull qwen3-coder:30b
+```
+
+3. Open a user's `Agent` page in Steve
+4. In OpenCode, configure or select Ollama as the model provider
+5. Use this base URL from the user container:
+
+```text
+http://host.docker.internal:11434/v1
+```
+
+That lets all user agents talk to the same Ollama instance running on your machine.
+
+## Local Development
+
+If you want to work on Steve itself:
 
 ```bash
 git clone https://github.com/robertbrunhage/steve.git
@@ -73,137 +221,41 @@ pnpm install
 ./steve up
 ```
 
-Local development uses the same Docker Compose entrypoint as production. The only difference is image source and default port:
+There are two runtimes:
 
 | Runtime | Command | Images | Default URL |
 | --- | --- | --- | --- |
-| Prod/install | `steve ...` | Published GHCR images | `http://localhost:3000` |
-| Local/dev | `./steve ...` | Locally built images | `http://localhost:3001` |
+| Installed | `steve ...` | Published release images | `http://localhost:7838` |
+| Local dev | `./steve ...` | Locally built images | `http://localhost:7839` |
 
 So the mental model is simple:
 
-- `steve ...` for an installed instance
-- `./steve ...` inside this repo
-- same verbs, same flow, separate runtimes
+- `steve ...` is your installed instance
+- `./steve ...` is your development instance
+- same commands, separate environments
 
-## Architecture
-
-```
-Docker Network
-┌──────────────────────────────────────────────────┐
-│                                                  │
-│  steve (TS)               opencode-robert        │
-│  ├ Telegram bot           ├ AI brain (isolated)  │
-│  ├ MCP tools              └ per-user workspace   │
-│  ├ Web dashboard (:3000)                         │
-│  ├ Encrypted vault        opencode-vanessa       │
-│  └ Scheduler              ├ AI brain (isolated)  │
-│                           └ per-user workspace   │
-│                                                  │
-│  Volumes:                                        │
-│  steve-vault ── keyfile + encrypted secrets      │
-│  steve-data ─── users, shared                    │
-└──────────────────────────────────────────────────┘
-```
-
-Each user gets a fully isolated OpenCode container with their own workspace, sessions, and AI context. Steve handles routing, scheduling, and secrets — the AI never touches the vault.
-
-## First-Run UX
-
-- Create one dashboard password
-- Add the household Telegram bot token once
-- Create users like `robert` or `vanessa`
-- Link each user to their Telegram account on that user page
-- Message the bot and let Steve do the rest
-
-## Memory Structure
-
-Each user's workspace has a `memory/` directory with persistent files and organized logs:
-
-```
-memory/
-  profile.md             # Who they are, goals, preferences
-  schedule.md            # Weekly plan
-  daily/                 # Auto-generated session summaries
-    2026-03-27.md
-  training/              # Workout logs
-    2026-03-27.md
-  nutrition/             # Nutrition logs
-    2026-03-27.md
-  body-measurements/     # Measurement sessions
-    2026-03-27.md
-```
-
-## Skills
-
-A skill is a directory with instructions, optional scripts, and templates:
-
-```
-my-skill/
-  SKILL.md       # Natural language instructions for the AI
-  scripts/       # Shell scripts (credentials auto-injected)
-  templates/     # File templates for consistent formats
-```
-
-Each user has their own `skills/` directory inside their workspace. Steve can copy bundled default skills into every user workspace and update them later with `steve update skills`. See `defaults/skills/TEMPLATE.md`.
-
-## Secrets & Security
-
-The AI is fully autonomous but never handles raw secrets. Here's how it works:
-
-1. You ask Steve to set up an integration (e.g., "connect my Withings scale")
-2. Steve checks if credentials exist. If not, it sends you to the right place in the web dashboard.
-3. You add user-specific credentials on that user's page and system credentials in Settings — never in chat.
-4. Steve's `run_script` tool injects them as env vars at runtime. Scripts that produce new credentials (e.g., OAuth tokens) use `save_to_vault` in their output — Steve saves them and strips the secrets before the AI sees anything.
-
-Vault is AES-256-GCM encrypted. A keyfile auto-decrypts on startup — password only on first run.
-
-## Backup And Restore
-
-- `steve backup` / `steve restore <file>` work on the installed runtime
-- `./steve backup` / `./steve restore <file>` work on the local dev runtime
-- restored data keeps users, secrets, and workspaces; if needed, Steve only asks you to finish dashboard password setup
-
-## Commands
+Useful dev commands:
 
 ```bash
-steve up                 # Start Steve from published images
-steve down               # Stop Steve
-steve logs               # Follow logs
-steve update             # Update to the newest published release
-steve update skills      # Copy bundled skills to every user
-steve update skills --force  # Overwrite bundled skills for every user
-steve setup-url          # Print the one-time setup URL
-steve backup             # Create encrypted backup
-steve restore <file>     # Restore encrypted backup
+./steve build
+./steve up
+./steve logs
+./steve update skills
+./steve backup
+./steve restore <file>
+pnpm doctor
 ```
 
-For development:
-```bash
-./steve build            # Build local images
-./steve up               # Start Steve locally
-./steve logs             # Follow local logs
-./steve update skills    # Copy bundled skills to every local user
-./steve setup-url        # Print the local setup URL
-./steve backup           # Create dev backup
-./steve restore <file>   # Restore dev backup
-pnpm launch              # Alias for ./steve up
-pnpm backup              # Alias for ./steve backup
-pnpm restore <file>      # Alias for ./steve restore
-pnpm doctor              # Health check
-```
+Published installs track versioned releases, not `latest`. `main` continues to publish dev images for trunk-based work.
 
-Published installs track versioned releases, not `latest`. Each Steve release publishes matching `steve` and `steve-opencode` image tags, while `main` continues to publish dev images for trunk-based work.
+## Security Model
 
-## Current Deployment Model
+Steve is designed for trusted local or household use.
 
-Today Steve is designed for trusted local or household use:
-
-- LAN-friendly `.local` URLs
-- no HTTPS or reverse proxy by default
-- one shared household admin password
-
-It is already solid for personal use and private beta testing, but if you want to expose it publicly you should put it behind your own HTTPS/reverse-proxy setup.
+- encrypted vault for secrets
+- per-user isolation by default
+- user integrations live on user pages
+- system secrets live in Settings
 
 ## License
 

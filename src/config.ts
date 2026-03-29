@@ -12,7 +12,7 @@ const steveDir = process.env.STEVE_DIR || join(homedir(), ".steve");
 
 const vaultDir = process.env.STEVE_VAULT_DIR || "/vault";
 const mcpPort = Number(process.env.STEVE_MCP_PORT) || 3100;
-const webPort = Number(process.env.STEVE_WEB_PORT) || 3000;
+const webPort = Number(process.env.STEVE_WEB_PORT) || 7838;
 const opencodePortBase = Number(process.env.STEVE_OPENCODE_PORT_BASE) || 3456;
 const telegramApiBase = process.env.STEVE_TELEGRAM_API_BASE || "https://api.telegram.org";
 

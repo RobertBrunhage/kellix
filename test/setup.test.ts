@@ -11,6 +11,7 @@ import {
   readdirSync,
   mkdirSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -174,6 +175,10 @@ async function run() {
     const userDir = join(testDir, "users", "testuser");
     assert.ok(existsSync(join(userDir, "opencode.json")));
     assert.ok(existsSync(join(userDir, ".opencode", "agents", "steve.md")));
+    const config = JSON.parse(readFileSync(join(userDir, "opencode.json"), "utf-8"));
+    assert.equal(config.default_agent, "steve");
+    assert.equal(config.agent.build.disable, true);
+    assert.equal(config.agent.plan.disable, true);
   });
 
   test("agent instructions pin the current user name", () => {
@@ -313,7 +318,8 @@ async function run() {
   const settingsHtml = await settingsPage.text();
   test("web settings: system secrets page loads", () => {
     assert.equal(settingsPage.status, 200);
-    assert.match(settingsHtml, /Save Telegram Token/);
+    assert.match(settingsHtml, /Telegram Bot/);
+    assert.match(settingsHtml, />Save</);
   });
 
   const addUserWithoutCsrf = await app.request("/users/add", {
@@ -408,7 +414,7 @@ async function run() {
 
   test("web jobs: jobs page shows scheduled jobs across users", () => {
     assert.equal(jobsPage.status, 200);
-    assert.match(jobsHtml, /Jobs & Routines/);
+    assert.match(jobsHtml, /<h1 class="text-xl font-semibold text-white">Tasks<\/h1>/);
     assert.match(jobsHtml, /Doctor Check-In/);
     assert.match(jobsHtml, /Weekly Review/);
     assert.match(jobsHtml, /Needs confirmation/);
@@ -514,11 +520,36 @@ async function run() {
   });
   const integrationsHtml = await integrationsPage.text();
 
+  writeFileSync(join(testDir, "users", "friend", "opencode.json"), JSON.stringify({
+    $schema: "https://opencode.ai/config.json",
+    default_agent: "steve",
+    model: "openai/gpt-5.4-mini",
+    mcp: {
+      steve: {
+        type: "remote",
+        url: "http://steve:3100/mcp",
+        enabled: true,
+      },
+    },
+  }, null, 2), "utf-8");
+
+  const agentPage = await app.request("/users/friend/agent", {
+    headers: { cookie: adminCookie || "" },
+  });
+  const agentPageHtml = await agentPage.text();
+
   test("web users: integrations live on their own subpage", () => {
     assert.equal(integrationsPage.status, 200);
-    assert.match(integrationsHtml, /Secrets & Integrations/);
+    assert.match(integrationsHtml, /<h2 class="text-sm font-medium text-white">Integrations<\/h2>/);
     assert.match(integrationsHtml, /Add Integration/);
-    assert.match(integrationsHtml, /When Steve asks for app credentials in Telegram, add them here/);
+    assert.match(integrationsHtml, /API keys and credentials Steve needs to connect to third-party services for this user/);
+  });
+
+  test("web users: agent page includes model controls", () => {
+    assert.equal(agentPage.status, 200);
+    assert.match(agentPageHtml, /The model Steve uses when responding to Telegram messages and running background tasks for this user/);
+    assert.match(agentPageHtml, /openai\/gpt-5\.4-mini/);
+    assert.match(agentPageHtml, /No models available yet\. Start the agent first/);
   });
 
   const newSecretPage = await app.request("/users/friend/integrations/new", {

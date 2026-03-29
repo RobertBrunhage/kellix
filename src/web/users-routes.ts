@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createOpencodeClient } from "@opencode-ai/sdk/client";
 import { readUserActivity } from "../activity.js";
 import { config, getBaseUrl, getUserDir, refreshRuntimeConfigFromVault } from "../config.js";
 import { deleteUserAppSecret, getUserAppSecret, listUserAppSecrets, setUserAppSecret } from "../secrets.js";
@@ -13,15 +14,81 @@ import {
   startExistingUserAgent,
   startUserAgent,
   stopUserAgent,
+  getComposeProject,
 } from "./docker.js";
 import { renderUserAgentPage, renderUserIntegrationsPage, renderUserOverview, renderUserSecretEditForm, renderUserSecretNewForm } from "./views.js";
 import { validateIntegrationSlug, validateTelegramId, validateUserSlug } from "./validate.js";
 import type { WebRouteDeps } from "./types.js";
 
 export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
+  function getUserOpenCodeConfigPath(name: string): string {
+    return `${getUserDir(name)}/opencode.json`;
+  }
+
+  function readUserOpenCodeConfig(name: string): Record<string, any> {
+    const configPath = getUserOpenCodeConfigPath(name);
+    if (!existsSync(configPath)) return {};
+    try {
+      return JSON.parse(readFileSync(configPath, "utf-8")) as Record<string, any>;
+    } catch {
+      return {};
+    }
+  }
+
+  function inferConfiguredModel(opencodeConfig: Record<string, any>): string | null {
+    if (typeof opencodeConfig.model === "string" && opencodeConfig.model.trim()) {
+      return opencodeConfig.model;
+    }
+
+    const providerEntries = opencodeConfig.provider && typeof opencodeConfig.provider === "object"
+      ? Object.entries(opencodeConfig.provider as Record<string, any>)
+      : [];
+
+    for (const [providerId, providerConfig] of providerEntries) {
+      const models = providerConfig && typeof providerConfig === "object" && providerConfig.models && typeof providerConfig.models === "object"
+        ? Object.keys(providerConfig.models)
+        : [];
+      if (models.length === 1) {
+        return `${providerId}/${models[0]}`;
+      }
+    }
+
+    return null;
+  }
+
+  async function getOpenCodeModelState(name: string): Promise<{
+    currentModel: string | null;
+    providers: Array<{ id: string; name: string; models: Array<{ id: string; name: string }> }>;
+  }> {
+    const oc = createOpencodeClient({
+      baseUrl: `http://opencode-${name}:3456`,
+      directory: "/data",
+    });
+
+    const [configRes, providersRes] = await Promise.all([
+      oc.config.get({}),
+      oc.config.providers({}),
+    ]);
+
+    const currentModel = inferConfiguredModel(readUserOpenCodeConfig(name)) || (typeof configRes.data?.model === "string" ? configRes.data.model : null);
+    const providers = (providersRes.data?.providers || [])
+      .map((provider: any) => ({
+        id: String(provider.id),
+        name: String(provider.name || provider.id),
+        models: Object.values(provider.models || {})
+          .map((model: any) => ({ id: String(model.id), name: String(model.name || model.id) }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      }))
+      .filter((provider: { models: Array<{ id: string; name: string }> }) => provider.models.length > 0)
+      .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
+
+    return { currentModel, providers };
+  }
+
   async function getUserPageState(name: string) {
     const userDir = getUserDir(name);
     if (!existsSync(userDir)) return null;
+    const savedConfig = readUserOpenCodeConfig(name);
 
     let ocStatus = "unknown";
     try {
@@ -36,10 +103,24 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const baseUrl = new URL(getBaseUrl());
     const ocUrl = ocPort ? `http://${baseUrl.hostname}:${ocPort}` : "";
     const users = normalizeUsers(deps.getVault()?.get("steve/users")).users;
+    let currentModel: string | null = inferConfiguredModel(savedConfig);
+    let modelProviders: Array<{ id: string; name: string; models: Array<{ id: string; name: string }> }> = [];
+
+    if (ocStatus === "running") {
+      try {
+        const modelState = await getOpenCodeModelState(name);
+        currentModel = modelState.currentModel || currentModel;
+        modelProviders = modelState.providers;
+      } catch {
+        modelProviders = [];
+      }
+    }
 
     return {
       ocStatus,
       ocUrl,
+      currentModel,
+      modelProviders,
       telegramChatId: getTelegramChatId(users, name),
       userSecrets: listUserAppSecrets(deps.getVault(), name),
       recentActivity: readUserActivity(config.dataDir, name, 6),
@@ -278,7 +359,63 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     if (!validatedName.ok) return c.redirect("/");
     const state = await getUserPageState(validatedName.value);
     if (!state) return c.redirect("/");
-    return c.html(renderUserAgentPage(validatedName.value, state.ocStatus, state.ocUrl, session.csrfToken));
+    return c.html(renderUserAgentPage(validatedName.value, state.ocStatus, state.ocUrl, session.csrfToken, state));
+  });
+
+  app.post("/users/:name/agent/model", async (c) => {
+    const result = await deps.requireAdminForm(c);
+    if (result instanceof Response) return result;
+
+    const validatedName = validateUserSlug(c.req.param("name"));
+    if (!validatedName.ok) return c.redirect("/");
+
+    const providerId = String(result.body.provider_id || "").trim();
+    const modelId = String(result.body.model_id || "").trim();
+    if (!providerId || !modelId) {
+      return c.redirect(`/users/${validatedName.value}/agent`);
+    }
+
+    const nextConfig = readUserOpenCodeConfig(validatedName.value);
+    nextConfig.model = `${providerId}/${modelId}`;
+
+    if (providerId === "local" || providerId === "ollama") {
+      const providers = nextConfig.provider && typeof nextConfig.provider === "object"
+        ? nextConfig.provider as Record<string, any>
+        : {};
+      const existingProvider = providers[providerId] && typeof providers[providerId] === "object"
+        ? providers[providerId] as Record<string, any>
+        : {};
+      const existingModels = existingProvider.models && typeof existingProvider.models === "object"
+        ? existingProvider.models as Record<string, any>
+        : {};
+
+      nextConfig.provider = {
+        ...providers,
+        [providerId]: {
+          npm: "@ai-sdk/openai-compatible",
+          name: providerId === "ollama" ? "Ollama (local)" : "local",
+          ...existingProvider,
+          options: {
+            ...(existingProvider.options && typeof existingProvider.options === "object" ? existingProvider.options : {}),
+            baseURL: "http://host.docker.internal:11434/v1",
+          },
+          models: {
+            ...existingModels,
+            [modelId]: {
+              ...(existingModels[modelId] && typeof existingModels[modelId] === "object" ? existingModels[modelId] : {}),
+              name: modelId,
+            },
+          },
+        },
+      };
+    }
+
+    writeFileSync(getUserOpenCodeConfigPath(validatedName.value), `${JSON.stringify(nextConfig, null, 2)}\n`, "utf-8");
+    const state = await getUserPageState(validatedName.value);
+    if (state?.ocStatus === "running") {
+      restartUserAgent(getComposeProject(), validatedName.value);
+    }
+    return c.redirect(`/users/${validatedName.value}/agent`);
   });
 
   app.get("/users/:name/logs", (c) => {

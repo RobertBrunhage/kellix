@@ -3,6 +3,10 @@ name: Publish Main Images
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - README.md
+      - assets/**
+      - LICENSE
 
 env:
   REGISTRY: ghcr.io

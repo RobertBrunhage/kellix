@@ -61,6 +61,11 @@ export function generateRuntimeConfig(users: UsersMap) {
 
   const opencodeJson = JSON.stringify({
     $schema: "https://opencode.ai/config.json",
+    default_agent: "steve",
+    agent: {
+      build: { disable: true },
+      plan: { disable: true },
+    },
     mcp: { steve: mcpConfig },
   }, null, 2);
 

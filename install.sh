@@ -12,7 +12,7 @@ ENV_FILE="$INSTALL_ROOT/.env"
 WRAPPER_PATH="$BIN_DIR/steve"
 DEFAULT_HOSTNAME=localhost
 DEFAULT_PROJECT=steve
-DEFAULT_WEB_PORT=3000
+DEFAULT_WEB_PORT=7838
 DEFAULT_OPENCODE_PORT_BASE=3456
 DEFAULT_STEVE_IMAGE_REPO=ghcr.io/robertbrunhage/steve
 DEFAULT_OPENCODE_IMAGE_REPO=ghcr.io/robertbrunhage/steve-opencode
@@ -196,6 +196,18 @@ docker_compose() {
     docker compose --project-name "\${STEVE_PROJECT:-$DEFAULT_PROJECT}" --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" "\$@"
 }
 
+remove_user_agents() {
+    local project ids=()
+    project="\${STEVE_PROJECT:-$DEFAULT_PROJECT}"
+    while IFS= read -r id; do
+        [[ -n "\$id" ]] && ids+=("\$id")
+    done < <(docker ps -aq --filter "name=\$project-opencode-" 2>/dev/null || true)
+
+    if [[ \${#ids[@]} -gt 0 ]]; then
+        docker rm -f "\${ids[@]}" >/dev/null
+    fi
+}
+
 get_env_value() {
     local key=$1
     if [[ -f "\$ENV_FILE" ]]; then
@@ -349,6 +361,7 @@ restore_steve() {
         exit 1
     fi
     ensure_backup_password
+    remove_user_agents
     docker_compose down >/dev/null 2>&1 || true
     local source=\$1
     local host_dir host_file
@@ -402,6 +415,7 @@ case "\$cmd" in
         maybe_show_setup_url
         ;;
     down)
+        remove_user_agents
         docker_compose down
         ;;
     restart)

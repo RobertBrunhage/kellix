@@ -58,6 +58,8 @@ export function startUserAgent(opts: StartUserAgentOptions): void {
     "    working_dir: /data",
     "    ports:",
     `      - "${opts.port}:3456"`,
+    "    extra_hosts:",
+    '      - "host.docker.internal:host-gateway"',
     "    volumes:",
     "      - type: volume",
     `        source: ${opts.composeProject}_steve-data`,

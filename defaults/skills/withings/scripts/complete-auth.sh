@@ -5,7 +5,7 @@
 set -euo pipefail
 
 USERNAME="${1:?Usage: complete-auth.sh <userName>}"
-BASE_URL="${STEVE_BASE_URL:-http://localhost:3000}"
+BASE_URL="${STEVE_BASE_URL:-http://localhost:7838}"
 
 CLIENT_ID="${STEVE_CRED_CLIENT_ID:?Missing CLIENT_ID}"
 CLIENT_SECRET="${STEVE_CRED_CLIENT_SECRET:?Missing CLIENT_SECRET}"
@@ -19,7 +19,7 @@ if [[ "$ITERATIONS" -lt 1 ]]; then ITERATIONS=1; fi
 
 CODE=""
 for i in $(seq 1 "$ITERATIONS"); do
-  RESULT=$(curl -sf "http://localhost:3000/oauth/code" 2>/dev/null || true)
+  RESULT=$(curl -sf "http://localhost:7838/oauth/code" 2>/dev/null || true)
   if [[ -n "$RESULT" ]]; then
     CODE=$(echo "$RESULT" | jq -r '.code // empty')
     if [[ -n "$CODE" ]]; then
