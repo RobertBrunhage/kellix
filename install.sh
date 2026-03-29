@@ -154,7 +154,8 @@ EOF
 write_wrapper() {
     mkdir -p "$BIN_DIR"
 
-    cat > "$WRAPPER_PATH" <<EOF
+    {
+        cat <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -165,11 +166,16 @@ REPO_SLUG="${REPO_SLUG}"
 REF="${requested_ref}"
 DEFAULT_PROJECT="${DEFAULT_PROJECT}"
 DEFAULT_WEB_PORT="${DEFAULT_WEB_PORT}"
+DEFAULT_OPENCODE_PORT_BASE="${DEFAULT_OPENCODE_PORT_BASE}"
 DEFAULT_STEVE_IMAGE="${DEFAULT_STEVE_IMAGE}"
 DEFAULT_OPENCODE_IMAGE="${DEFAULT_OPENCODE_IMAGE}"
 DEFAULT_STEVE_IMAGE_REPO="${DEFAULT_STEVE_IMAGE_REPO}"
 DEFAULT_OPENCODE_IMAGE_REPO="${DEFAULT_OPENCODE_IMAGE_REPO}"
 DEFAULT_TELEGRAM_API_BASE="${DEFAULT_TELEGRAM_API_BASE}"
+DEFAULT_HOSTNAME="${DEFAULT_HOSTNAME}"
+EOF
+
+        cat <<'EOF'
 
 resolve_latest_release_ref() {
     local latest
@@ -264,7 +270,7 @@ ensure_files() {
         exit 1
     fi
     if [[ ! -f "\$ENV_FILE" ]]; then
-        printf 'STEVE_RELEASE_REF=${requested_ref}\nSTEVE_VERSION=${requested_ref}\nSTEVE_PROJECT=${DEFAULT_PROJECT}\nSTEVE_WEB_PORT=${DEFAULT_WEB_PORT}\nSTEVE_OPENCODE_PORT_BASE=${DEFAULT_OPENCODE_PORT_BASE}\nSTEVE_IMAGE=${DEFAULT_STEVE_IMAGE}\nSTEVE_OPENCODE_IMAGE=${DEFAULT_OPENCODE_IMAGE}\nSTEVE_TELEGRAM_API_BASE=${DEFAULT_TELEGRAM_API_BASE}\nSTEVE_HOSTNAME=${DEFAULT_HOSTNAME}\n' > "\$ENV_FILE"
+        printf 'STEVE_RELEASE_REF=%s\nSTEVE_VERSION=%s\nSTEVE_PROJECT=%s\nSTEVE_WEB_PORT=%s\nSTEVE_OPENCODE_PORT_BASE=%s\nSTEVE_IMAGE=%s\nSTEVE_OPENCODE_IMAGE=%s\nSTEVE_TELEGRAM_API_BASE=%s\nSTEVE_HOSTNAME=%s\n' "\$REF" "\$REF" "\$DEFAULT_PROJECT" "\$DEFAULT_WEB_PORT" "\$DEFAULT_OPENCODE_PORT_BASE" "\$DEFAULT_STEVE_IMAGE" "\$DEFAULT_OPENCODE_IMAGE" "\$DEFAULT_TELEGRAM_API_BASE" "\$DEFAULT_HOSTNAME" > "\$ENV_FILE"
     fi
 }
 
@@ -397,7 +403,7 @@ maybe_show_setup_url() {
     local token=""
     for _ in $(seq 1 15); do
         token=$(docker_compose exec -T steve sh -lc 'if [ -f /data/setup-token.json ]; then sed -n "s/.*\"token\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" /data/setup-token.json; fi' 2>/dev/null || true)
-        if [[ -n "$token" ]]; then
+        if [[ -n "\$token" ]]; then
             show_setup_url
             return
         fi
@@ -442,7 +448,7 @@ case "\$cmd" in
         if [[ "\${2:-}" == "skills" ]]; then
             update_skills "\${3:-}"
         else
-            next_ref=$(resolve_latest_release_ref)
+            next_ref=\$(resolve_latest_release_ref)
             curl -fsSL "https://raw.githubusercontent.com/\$REPO_SLUG/\$next_ref/docker-compose.yml" -o "\$COMPOSE_FILE"
             apply_release_ref "\$next_ref"
             docker_compose pull
@@ -468,6 +474,7 @@ case "\$cmd" in
         ;;
 esac
 EOF
+    } > "$WRAPPER_PATH"
 
     chmod 755 "$WRAPPER_PATH"
 }
@@ -518,6 +525,26 @@ maybe_update_path() {
     esac
 }
 
+maybe_show_setup_url_install() {
+    local host port token=""
+    host=$(detect_hostname)
+    port=$DEFAULT_WEB_PORT
+
+    for _ in $(seq 1 15); do
+        token=$(docker compose --project-name "$DEFAULT_PROJECT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" exec -T steve sh -lc 'if [ -f /data/setup-token.json ]; then sed -n "s/.*\"token\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" /data/setup-token.json; fi' 2>/dev/null || true)
+        if [[ -n "$token" ]]; then
+            if [[ "$host" == "localhost" ]]; then
+                printf 'Setup URL: http://localhost:%s/setup?token=%s\n' "$port" "$token"
+            else
+                printf 'Setup URL: http://%s.local:%s/setup?token=%s\n' "$host" "$port" "$token"
+                printf 'Local:     http://localhost:%s/setup?token=%s\n' "$port" "$token"
+            fi
+            return
+        fi
+        sleep 1
+    done
+}
+
 verify_docker() {
     need_cmd curl
     need_cmd docker
@@ -558,4 +585,4 @@ else
     printf 'Dashboard: http://%s.local:%s\n' "$(detect_hostname)" "$DEFAULT_WEB_PORT"
     printf 'Local:     http://localhost:%s\n' "$DEFAULT_WEB_PORT"
 fi
-maybe_show_setup_url
+maybe_show_setup_url_install
