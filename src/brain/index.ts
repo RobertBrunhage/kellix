@@ -102,6 +102,18 @@ export class Brain {
     return created;
   }
 
+  private async getPrimarySessionId(oc: OpencodeClient, userName: string): Promise<string | null> {
+    const key = toUserSlug(userName);
+    const cached = this.sessions.get(key);
+    if (cached) return cached;
+    const existing = await this.findExistingSessionId(oc, userName);
+    if (existing) {
+      this.sessions.set(key, existing);
+      return existing;
+    }
+    return null;
+  }
+
   private buildPromptParts(userMessage: string, files?: string[]): PromptPart[] {
     const parts: PromptPart[] = [{ type: "text", text: userMessage }];
 
@@ -201,6 +213,33 @@ export class Brain {
       p.log.error(`Isolated task failed for ${userName}: ${error instanceof Error ? error.message : error}`);
       throw error;
     }
+  }
+
+  async compactPrimarySession(userName: string): Promise<boolean> {
+    const key = toUserSlug(userName);
+    const oc = this.getClient(userName);
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const sessionId = await this.getPrimarySessionId(oc, userName);
+      if (!sessionId) {
+        return false;
+      }
+
+      const res = await oc.session.summarize({ path: { id: sessionId } });
+      if (!res.error) {
+        this.sessions.set(key, sessionId);
+        return true;
+      }
+
+      if (attempt === 0 && (res.response?.status === 404 || res.response?.status === 400)) {
+        this.sessions.delete(key);
+        continue;
+      }
+
+      throw new Error(`OpenCode error: ${JSON.stringify(res.error)}`);
+    }
+
+    return false;
   }
 
   stopAll() {

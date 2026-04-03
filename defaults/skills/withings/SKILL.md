@@ -46,9 +46,12 @@ The setup script returns instantly with JSON containing a `status` field:
 
 ## Fetching Measurements
 
-Once setup returns `ready`, call `run_script` with `/data/skills/withings/scripts/fetch-measurements.sh` and `["{userName}"]`.
+Once setup returns `ready`, call `run_script` with `/data/skills/withings/scripts/fetch-measurements.sh`.
 
-Returns JSON with available fields: date, weight_kg, fat_ratio, fat_free_mass_kg, muscle_mass_kg, bone_mass_kg.
+- Use `[`"{userName}"`]` to fetch the latest measurement only.
+- Use `[`"{userName}", "YYYY-MM-DD"`]` to fetch all measurement entries from that date onward.
+
+Returns either a single JSON object (latest only) or a JSON array (history mode) with available fields: date, weight_kg, fat_ratio, fat_mass_kg, muscle_mass_kg, water_kg, bone_mass_kg.
 
 If it returns `{"error":"token_expired"}`, call setup.sh again — it refreshes tokens automatically.
 

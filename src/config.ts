@@ -1,6 +1,7 @@
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { homedir } from "node:os";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { Vault } from "./vault/index.js";
 import { getTelegramBotToken } from "./secrets.js";
 import { getAllowedTelegramIds, normalizeUsers, toUserSlug, type UsersMap } from "./users.js";
@@ -16,6 +17,11 @@ const mcpPort = Number(process.env.STEVE_MCP_PORT) || 3100;
 const webPort = Number(process.env.STEVE_WEB_PORT) || 7838;
 const opencodePortBase = Number(process.env.STEVE_OPENCODE_PORT_BASE) || 3456;
 const telegramApiBase = process.env.STEVE_TELEGRAM_API_BASE || "https://api.telegram.org";
+const DEFAULT_TIMEZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+export interface SteveSystemSettings {
+  timezone: string;
+}
 
 export interface SteveConfig {
   projectRoot: string;
@@ -89,6 +95,53 @@ export const config: SteveConfig = Object.freeze({
 
 export function getTelegramApiBase(): string {
   return config.telegramApiBase.replace(/\/$/, "");
+}
+
+function getSystemSettingsPath(): string {
+  return join(config.dataDir, "system-settings.json");
+}
+
+export function isValidTimezone(value: string): boolean {
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: value }).format(new Date());
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function getDefaultTimezone(): string {
+  return DEFAULT_TIMEZONE;
+}
+
+export function readSystemSettings(): SteveSystemSettings {
+  try {
+    const path = getSystemSettingsPath();
+    if (!existsSync(path)) {
+      return { timezone: DEFAULT_TIMEZONE };
+    }
+    const parsed = JSON.parse(readFileSync(path, "utf-8")) as Partial<SteveSystemSettings>;
+    const timezone = typeof parsed.timezone === "string" && isValidTimezone(parsed.timezone)
+      ? parsed.timezone
+      : DEFAULT_TIMEZONE;
+    return { timezone };
+  } catch {
+    return { timezone: DEFAULT_TIMEZONE };
+  }
+}
+
+export function writeSystemSettings(settings: Partial<SteveSystemSettings>): SteveSystemSettings {
+  const next: SteveSystemSettings = {
+    ...readSystemSettings(),
+    ...settings,
+  };
+  mkdirSync(config.dataDir, { recursive: true });
+  writeFileSync(getSystemSettingsPath(), `${JSON.stringify(next, null, 2)}\n`, "utf-8");
+  return next;
+}
+
+export function getSystemTimezone(): string {
+  return readSystemSettings().timezone;
 }
 
 export function getSteveVersion(): string {

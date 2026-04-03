@@ -202,7 +202,7 @@ export function renderHome(health: HealthStatus, csrfToken: string): string {
   `);
 }
 
-export function renderSettings(telegramBotToken: string | null, steveVersion: string, csrfToken: string, error?: string): string {
+export function renderSettings(telegramBotToken: string | null, steveVersion: string, csrfToken: string, timezone: string, error?: string): string {
   const errorHtml = error ? flash(error, "error") : "";
   return layout("Settings", `
     ${nav(csrfToken)}
@@ -216,6 +216,21 @@ export function renderSettings(telegramBotToken: string | null, steveVersion: st
     <div class="bg-surface-card border border-border rounded-lg p-5 mb-6">
       <h2 class="text-sm font-medium text-white mb-1">Version</h2>
       <p class="text-xs text-zinc-500">Running <code>${escapeHtml(steveVersion)}</code></p>
+    </div>
+    <div class="bg-surface-card border border-border rounded-lg p-5 mb-6">
+      <h2 class="text-sm font-medium text-white mb-1">Timezone</h2>
+      <p class="text-xs text-zinc-500 mb-4">Used for daily compaction and any system-level scheduled behavior that should follow your local day.</p>
+      <form method="POST" action="/settings/timezone" class="space-y-4">
+        ${hiddenCsrf(csrfToken)}
+        <div>
+          <label class="block text-sm text-zinc-400 mb-1">IANA timezone</label>
+          <input type="text" name="timezone" value="${escapeHtml(timezone)}" placeholder="Europe/Stockholm"
+            class="w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+          <p class="text-xs text-zinc-600 mt-2">Examples: <code>Europe/Stockholm</code>, <code>America/New_York</code>, <code>Asia/Tokyo</code>.</p>
+        </div>
+        <button type="submit"
+          class="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors">Save</button>
+      </form>
     </div>
     <div id="system-secrets" class="bg-surface-card border border-border rounded-lg p-5">
       <h2 class="text-sm font-medium text-white mb-1">Telegram Bot</h2>
@@ -690,8 +705,8 @@ export function renderUserSecretEditForm(userName: string, integration: string, 
   `);
 }
 
-export function renderSetup(options: { needsVaultPassword: boolean; csrfToken: string; error?: string; authOnly?: boolean }): string {
-  const { needsVaultPassword, csrfToken, error, authOnly } = options;
+export function renderSetup(options: { needsVaultPassword: boolean; csrfToken: string; error?: string; authOnly?: boolean; timezone: string }): string {
+  const { needsVaultPassword, csrfToken, error, authOnly, timezone } = options;
   const errorHtml = error ? flash(error, "error") : "";
   const input = "w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none";
   const passwordHelp = authOnly
@@ -725,7 +740,14 @@ export function renderSetup(options: { needsVaultPassword: boolean; csrfToken: s
 
       ${authOnly ? "" : `
       <div class="bg-surface-card border border-border rounded-lg p-5">
-        <h2 class="text-sm font-medium text-white mb-1">Step 2 — Set up Telegram</h2>
+        <h2 class="text-sm font-medium text-white mb-1">Step 2 — Confirm your timezone</h2>
+        <p class="text-xs text-zinc-500 mb-4">Steve uses this for daily compaction and system-level schedules. We auto-fill it from your browser when possible.</p>
+        <input type="text" id="timezone-input" name="timezone" value="${escapeHtml(timezone)}" placeholder="Europe/Stockholm" required
+          class="${input}">
+      </div>
+
+      <div class="bg-surface-card border border-border rounded-lg p-5">
+        <h2 class="text-sm font-medium text-white mb-1">Step 3 — Set up Telegram</h2>
         <ol class="text-xs text-zinc-500 mb-4 space-y-1 list-decimal list-inside">
           <li>Open Telegram and message <strong class="text-zinc-300">@BotFather</strong></li>
           <li>Send <code class="text-blue-400">/newbot</code> and follow the prompts</li>
@@ -736,7 +758,7 @@ export function renderSetup(options: { needsVaultPassword: boolean; csrfToken: s
       </div>
 
       <div class="bg-surface-card border border-border rounded-lg p-5">
-        <h2 class="text-sm font-medium text-white mb-1">Step 3 — Create your first user</h2>
+        <h2 class="text-sm font-medium text-white mb-1">Step 4 — Create your first user</h2>
         <p class="text-xs text-zinc-500 mb-4">
           Pick a name for yourself. After setup you'll connect Telegram on the user page.
           More users can be added later from the dashboard.
@@ -750,6 +772,16 @@ export function renderSetup(options: { needsVaultPassword: boolean; csrfToken: s
       <button type="submit"
         class="w-full py-3 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors font-medium">${authOnly ? "Finish Dashboard Setup" : "Finish Setup"}</button>
     </form>
+    <script>
+      (function () {
+        const input = document.getElementById('timezone-input');
+        if (!input || input.value) return;
+        try {
+          const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+          if (tz) input.value = tz;
+        } catch {}
+      })();
+    </script>
   `);
 }
 

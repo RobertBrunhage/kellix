@@ -2,8 +2,35 @@ import type { Plugin } from "@opencode-ai/plugin";
 import fs from "fs";
 import path from "path";
 
-const FLUSH_HOUR = 23;
 const MEMORY_DIR = "./memory/daily";
+const STEVE_AGENT_PATH = path.resolve(".opencode/agents/steve.md");
+
+function readSteveUser(): string | null {
+  try {
+    const content = fs.readFileSync(STEVE_AGENT_PATH, "utf-8");
+    const match = content.match(/^Current Steve user: (.+)$/m);
+    return match?.[1]?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function isPrimarySteveSessionTitle(title: string, userName: string | null): boolean {
+  if (!title.startsWith("Steve - ")) return false;
+  if (title.includes("(isolated)")) return false;
+  if (!userName) return true;
+  return title.trim() === `Steve - ${userName}`;
+}
+
+async function shouldRecordCompaction(client: any, sessionID: string, userName: string | null): Promise<boolean> {
+  try {
+    const res = await client.session.get({ path: { id: sessionID } });
+    const title = String(res.data?.title || "");
+    return isPrimarySteveSessionTitle(title, userName);
+  } catch {
+    return false;
+  }
+}
 
 function todayFile(): string {
   return path.join(MEMORY_DIR, `${new Date().toISOString().split("T")[0]}.md`);
@@ -20,25 +47,15 @@ function appendToDaily(text: string, label: string) {
   }
 }
 
-export const MemoryFlushPlugin: Plugin = async ({ client }) => {
-  // Nightly forced compaction
-  let lastFlush = "";
-  setInterval(async () => {
-    const now = new Date();
-    const today = now.toISOString().split("T")[0];
-    if (now.getHours() === FLUSH_HOUR && lastFlush !== today) {
-      lastFlush = today;
-      try {
-        await client.session.summarize({ path: { id: "current" } });
-      } catch {}
-    }
-  }, 60_000);
+export const MemoryFlushPlugin: Plugin = async ({ client }: { client: any }) => {
+  const userName = readSteveUser();
 
   return {
-    event: async ({ event }) => {
+    event: async ({ event }: { event: any }) => {
       if (event.type === "session.compacted") {
         const sessionID = (event as any).properties?.sessionID;
         if (!sessionID) return;
+        if (!(await shouldRecordCompaction(client, sessionID, userName))) return;
 
         try {
           // Fetch all messages — the full history is preserved, with a
@@ -92,8 +109,9 @@ export const MemoryFlushPlugin: Plugin = async ({ client }) => {
     // Guide compaction to produce a useful summary
     "experimental.session.compacting": async (_input: any, output: any) => {
       output.context.push(
-        "When summarizing this session, focus on: decisions made, goals changed, " +
-        "commitments, action items, and important facts learned. Skip trivial exchanges."
+        "Summarize this session as a concise daily note for future reference. " +
+        "Prefer short markdown bullets under clear headings like Decisions, Commitments, Open Loops, and Important Facts when relevant. " +
+        "Only include concrete things that matter later. Skip chit-chat, repeated planning, and tool noise. Omit empty sections."
       );
     },
   };

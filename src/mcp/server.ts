@@ -6,7 +6,7 @@ import { z } from "zod";
 import { appendUserActivity } from "../activity.js";
 import type { Vault } from "../vault/index.js";
 import type { Channel } from "../channels/index.js";
-import { config, getBaseUrl } from "../config.js";
+import { config, getBaseUrl, getSystemTimezone } from "../config.js";
 import { loadUserJobs, removeUserJob, type Job, upsertUserJob } from "../scheduler.js";
 import { toUserSlug } from "../users.js";
 import { appendRunScriptAudit } from "./audit.js";
@@ -113,13 +113,13 @@ export function createMcpServerFactory(mcpConfig: McpConfig, vault: Vault | null
     inputSchema: {},
   }, async () => {
     const now = new Date();
-    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const tz = getSystemTimezone();
     return {
       content: [{ type: "text", text: JSON.stringify({
         time: now.toISOString(),
         localTime: now.toLocaleString("en-SE", { timeZone: tz }),
         timezone: tz,
-        dayOfWeek: now.toLocaleDateString("en-US", { weekday: "long" }),
+        dayOfWeek: now.toLocaleDateString("en-US", { weekday: "long", timeZone: tz }),
       }) }],
     };
   });

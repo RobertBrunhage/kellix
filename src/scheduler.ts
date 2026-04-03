@@ -4,7 +4,7 @@ import { CronJob } from "cron";
 import * as p from "@clack/prompts";
 import { appendUserActivity } from "./activity.js";
 import type { Brain } from "./brain/index.js";
-import { config } from "./config.js";
+import { config, getSystemTimezone } from "./config.js";
 import { setReminderCount } from "./health.js";
 import { toUserSlug } from "./users.js";
 
@@ -45,6 +45,7 @@ export interface ScheduledEntry {
 const activeJobs: Map<string, CronJob> = new Map();
 const firedOneOffs: Set<string> = new Set();
 const MAX_RETRIES = 3;
+const DAILY_COMPACTION_CRON = "0 23 * * *";
 
 /** Get the jobs.json path for a specific user */
 export function getUserJobsPath(userName: string): string {
@@ -126,13 +127,15 @@ export function loadAllJobs(): UserJobs[] {
 
 /** Find users who have a HEARTBEAT.md file */
 export function loadHeartbeatUsers(): string[] {
+  return loadUserDirectories().filter((userDirName) => existsSync(join(config.usersDir, userDirName, "HEARTBEAT.md")));
+}
+
+function loadUserDirectories(): string[] {
   const users: string[] = [];
   try {
     for (const userDirName of readdirSync(config.usersDir)) {
       if (userDirName.startsWith(".")) continue;
-      if (existsSync(join(config.usersDir, userDirName, "HEARTBEAT.md"))) {
-        users.push(userDirName);
-      }
+      users.push(userDirName);
     }
   } catch {}
   return users;
@@ -278,6 +281,20 @@ async function fireHeartbeat(userName: string, brain: Brain) {
   }
 }
 
+async function fireDailyCompaction(userName: string, brain: Brain) {
+  p.log.step(`Daily compaction -> ${userName}`);
+  try {
+    const compacted = await brain.compactPrimarySession(userName);
+    if (!compacted) {
+      p.log.info(`Daily compaction skipped for ${userName} (no primary session yet)`);
+      return;
+    }
+    p.log.info(`Daily compaction finished for ${userName}`);
+  } catch (error) {
+    p.log.warn(`Daily compaction failed for ${userName}: ${error instanceof Error ? error.message : error}`);
+  }
+}
+
 function checkOneOffs(allUserJobs: UserJobs[], brain: Brain) {
   const now = Date.now();
   for (const { userName, jobs } of allUserJobs) {
@@ -300,10 +317,13 @@ export function startScheduler(brain: Brain) {
   function sync(initial = false) {
     const allUserJobs = loadAllJobs();
     const heartbeatUsers = loadHeartbeatUsers();
+    const compactionUsers = loadUserDirectories();
+    const compactionTimezone = getSystemTimezone();
 
     const fingerprint = allUserJobs
       .flatMap(({ userName, jobs }) => jobs.map((j) => `${userName}:${j.id}:${j.cron || j.at}:${j.disabled ? "disabled" : "enabled"}`))
       .concat(heartbeatUsers.map((userName) => `heartbeat:${userName}`))
+      .concat(compactionUsers.map((userName) => `compaction:${userName}:${compactionTimezone}`))
       .sort()
       .join("|");
 
@@ -350,6 +370,19 @@ export function startScheduler(brain: Brain) {
     }
     if (heartbeatUsers.length > 0) {
       p.log.info(`Heartbeat active for ${heartbeatUsers.join(", ")}`);
+    }
+
+    for (const userName of compactionUsers) {
+      const compactionJob = CronJob.from({
+        cronTime: DAILY_COMPACTION_CRON,
+        onTick: () => fireDailyCompaction(userName, brain),
+        start: true,
+        timeZone: compactionTimezone,
+      });
+      activeJobs.set(`compaction:${userName}`, compactionJob);
+    }
+    if (compactionUsers.length > 0) {
+      p.log.info(`Daily compaction active for ${compactionUsers.join(", ")} (${compactionTimezone})`);
     }
 
     const totalJobs = allUserJobs.reduce((n, u) => n + u.jobs.filter((j) => !j.disabled).length, 0);

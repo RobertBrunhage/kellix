@@ -167,6 +167,15 @@ async function run() {
     assert.ok(existsSync(join(memDir, "body-measurements")));
   });
 
+  test("opencode daily note plugin is copied into the user workspace", () => {
+    const pluginPath = join(testDir, "users", "testuser", ".opencode", "plugins", "memory-flush.ts");
+    assert.ok(existsSync(pluginPath));
+    const plugin = readFileSync(pluginPath, "utf-8");
+    assert.match(plugin, /session\.compacted/);
+    assert.doesNotMatch(plugin, /id: "current"/);
+    assert.doesNotMatch(plugin, /setInterval/);
+  });
+
   test("profile created with current user name", () => {
     const profile = readFileSync(join(testDir, "users", "testuser", "memory", "profile.md"), "utf-8");
     assert.match(profile, /## Name/);
@@ -287,6 +296,7 @@ async function run() {
     body: new URLSearchParams({
       password: "admin-pass-123",
       confirm_password: "admin-pass-123",
+      timezone: "Europe/Stockholm",
       bot_token: "telegram-token",
       user_name_0: "robert",
     }),
@@ -310,6 +320,7 @@ async function run() {
       _csrf: bootstrapCsrf2 || "",
       password: "admin-pass-123",
       confirm_password: "admin-pass-123",
+      timezone: "Europe/Stockholm",
       bot_token: "telegram-token",
       user_name_0: "robert",
     }),
@@ -320,6 +331,7 @@ async function run() {
     assert.equal(goodSetup.status, 200);
     assert.ok(adminCookie);
     assert.ok(existsSync(join(testDir, "vault", "keyfile")));
+    assert.equal(JSON.parse(readFileSync(join(testDir, "system-settings.json"), "utf-8")).timezone, "Europe/Stockholm");
   });
 
   const setupCompleteHtml = await goodSetup.text();
@@ -361,8 +373,24 @@ async function run() {
   const settingsHtml = await settingsPage.text();
   test("web settings: system secrets page loads", () => {
     assert.equal(settingsPage.status, 200);
+    assert.match(settingsHtml, /Timezone/);
+    assert.match(settingsHtml, /Europe\/Stockholm/);
     assert.match(settingsHtml, /Telegram Bot/);
     assert.match(settingsHtml, />Save</);
+  });
+
+  const updateTimezone = await app.request("/settings/timezone", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      cookie: adminCookie || "",
+    },
+    body: new URLSearchParams({ _csrf: adminCsrf || "", timezone: "America/New_York" }),
+  });
+
+  test("web settings: timezone can be updated from settings page", () => {
+    assert.equal(updateTimezone.status, 302);
+    assert.equal(JSON.parse(readFileSync(join(testDir, "system-settings.json"), "utf-8")).timezone, "America/New_York");
   });
 
   const addUserWithoutCsrf = await app.request("/users/add", {

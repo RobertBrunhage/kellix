@@ -1,5 +1,5 @@
 import type { Hono } from "hono";
-import { config, getTelegramApiBase } from "../config.js";
+import { config, getDefaultTimezone, getTelegramApiBase, isValidTimezone, writeSystemSettings } from "../config.js";
 import { getTelegramBotToken, setTelegramBotToken } from "../secrets.js";
 import { Vault, initializeVault } from "../vault/index.js";
 import { getHealth } from "../health.js";
@@ -81,9 +81,16 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
     const authOnly = needsDashboardPasswordOnly();
     const password = String(body.password || "").trim();
     const confirmPassword = String(body.confirm_password || "").trim();
-    if (!password) return c.html(deps.buildSetupView(session.csrfToken, "Password is required", authOnly), 400);
-    if (password.length < 8) return c.html(deps.buildSetupView(session.csrfToken, "Password must be at least 8 characters", authOnly), 400);
-    if (password !== confirmPassword) return c.html(deps.buildSetupView(session.csrfToken, "Passwords do not match", authOnly), 400);
+    const timezone = String(body.timezone || getDefaultTimezone()).trim();
+    if (!password) return c.html(deps.buildSetupView(session.csrfToken, "Password is required", authOnly, timezone), 400);
+    if (password.length < 8) return c.html(deps.buildSetupView(session.csrfToken, "Password must be at least 8 characters", authOnly, timezone), 400);
+    if (password !== confirmPassword) return c.html(deps.buildSetupView(session.csrfToken, "Passwords do not match", authOnly, timezone), 400);
+    if (!authOnly && !timezone) {
+      return c.html(deps.buildSetupView(session.csrfToken, "Timezone is required", authOnly, timezone), 400);
+    }
+    if (!authOnly && !isValidTimezone(timezone)) {
+      return c.html(deps.buildSetupView(session.csrfToken, "Timezone must look like Europe/Stockholm", authOnly, timezone), 400);
+    }
 
     let botToken = "";
     let users: UsersMap = {};
@@ -97,16 +104,16 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
       users = normalizeUsers(vault.get("steve/users")).users;
     } else {
       botToken = String(body.bot_token || "").trim();
-      if (!botToken) return c.html(deps.buildSetupView(session.csrfToken, "Bot token is required", authOnly), 400);
+      if (!botToken) return c.html(deps.buildSetupView(session.csrfToken, "Bot token is required", authOnly, timezone), 400);
 
       try {
         const res = await deps.telegramFetch(`${getTelegramApiBase()}/bot${botToken}/getMe`);
         const data = await res.json() as { ok: boolean; description?: string };
         if (!data.ok) {
-          return c.html(deps.buildSetupView(session.csrfToken, `Invalid bot token: ${data.description || "check your token"}`, authOnly), 400);
+          return c.html(deps.buildSetupView(session.csrfToken, `Invalid bot token: ${data.description || "check your token"}`, authOnly, timezone), 400);
         }
       } catch {
-        return c.html(deps.buildSetupView(session.csrfToken, "Could not validate bot token. Check your internet connection.", authOnly), 400);
+        return c.html(deps.buildSetupView(session.csrfToken, "Could not validate bot token. Check your internet connection.", authOnly, timezone), 400);
       }
 
       for (let i = 0; i < 20; i++) {
@@ -115,14 +122,14 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
 
         const validatedName = validateUserSlug(rawName);
         if (!validatedName.ok) {
-          return c.html(deps.buildSetupView(session.csrfToken, validatedName.error, authOnly), 400);
+          return c.html(deps.buildSetupView(session.csrfToken, validatedName.error, authOnly, timezone), 400);
         }
 
         users = ensureUser(users, validatedName.value);
       }
 
       if (Object.keys(users).length === 0) {
-        return c.html(deps.buildSetupView(session.csrfToken, "Add at least one user", authOnly), 400);
+        return c.html(deps.buildSetupView(session.csrfToken, "Add at least one user", authOnly, timezone), 400);
       }
     }
 
@@ -140,6 +147,9 @@ export function registerSetupRoutes(app: Hono, deps: WebRouteDeps) {
     vault.set(ADMIN_AUTH_KEY, hashPassword(password) as any);
     setTelegramBotToken(vault, botToken);
     vault.set("steve/users", users as any);
+    if (!authOnly) {
+      writeSystemSettings({ timezone });
+    }
 
     deps.clearBootstrapSession(c);
     deps.clearSetupToken();
