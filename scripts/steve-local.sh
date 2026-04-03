@@ -149,7 +149,9 @@ backup_steve() {
         host_file=$(basename "$target")
         STEVE_BACKUP_OUTPUT_PATH="$host_dir/$host_file" run_image_tool /app "$host_dir" /backup node dist/backup.js "/backup/$host_file"
     else
-        STEVE_BACKUP_OUTPUT_DIR="$PWD" run_image_tool /app "$PWD" /backup node dist/backup.js
+        host_dir="$PWD"
+        host_file="steve-backup-$(date +%F).enc"
+        STEVE_BACKUP_OUTPUT_PATH="$host_dir/$host_file" run_image_tool /app "$host_dir" /backup node dist/backup.js "/backup/$host_file"
     fi
 }
 
