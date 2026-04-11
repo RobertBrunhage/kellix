@@ -99,7 +99,7 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const agentEnabled = agentState?.enabled ?? false;
     try {
       const res = await fetch(`http://opencode-${name}:3456`, { signal: AbortSignal.timeout(2000) });
-      ocStatus = res.ok ? "running" : "stopped";
+      ocStatus = res.status < 500 ? "running" : "stopped";
     } catch {
       ocStatus = agentEnabled ? "stopped" : "paused";
     }
