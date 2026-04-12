@@ -6,8 +6,13 @@ interface Props {
 
 const {
 	title = 'Kellix',
-	description = 'Kellix is building a calmer, more capable household AI assistant.',
+	description = 'Kellix is a self-hosted Telegram assistant for calories, workouts, goals, and household routines.',
 } = Astro.props;
+
+const pageUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
+const ogImageUrl = new URL('/og.png', Astro.site ?? Astro.url);
+ogImageUrl.searchParams.set('title', title);
+ogImageUrl.searchParams.set('subtitle', description);
 ---
 
 <!doctype html>
@@ -19,6 +24,18 @@ const {
 		<link rel="icon" href="/favicon.ico" />
 		<meta name="generator" content={Astro.generator} />
 		<meta name="description" content={description} />
+		<meta property="og:type" content="website" />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:url" content={pageUrl.toString()} />
+		<meta property="og:image" content={ogImageUrl.toString()} />
+		<meta property="og:image:width" content="1200" />
+		<meta property="og:image:height" content="630" />
+		<meta property="og:image:alt" content={title} />
+		<meta name="twitter:card" content="summary_large_image" />
+		<meta name="twitter:title" content={title} />
+		<meta name="twitter:description" content={description} />
+		<meta name="twitter:image" content={ogImageUrl.toString()} />
 		<title>{title}</title>
 	</head>
 	<body>
