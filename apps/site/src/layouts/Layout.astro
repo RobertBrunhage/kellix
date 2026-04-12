@@ -11,8 +11,6 @@ const {
 
 const pageUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const ogImageUrl = new URL('/og.png', Astro.site ?? Astro.url);
-ogImageUrl.searchParams.set('title', title);
-ogImageUrl.searchParams.set('subtitle', description);
 ---
 
 <!doctype html>
