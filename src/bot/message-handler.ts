@@ -1,4 +1,5 @@
 import { writeFile, mkdir, unlink } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import type { Bot, Context } from "grammy";
 import { appendUserActivity } from "../activity.js";
@@ -6,8 +7,20 @@ import type { Brain } from "../brain/index.js";
 import { config, getRuntime, getTelegramApiBase, getUserDir } from "../config.js";
 import { getUserName } from "./commands.js";
 
+type DownloadedPhoto = { hostPath: string; containerPath: string };
+type PendingPhotoGroup = {
+  ctx: Context;
+  userName: string;
+  caption: string | null;
+  downloads: Promise<DownloadedPhoto | null>[];
+  timer: ReturnType<typeof setTimeout>;
+};
+
+const PHOTO_GROUP_SETTLE_MS = 750;
+const pendingPhotoGroups = new Map<string, PendingPhotoGroup>();
+
 /** Download photo to user's workspace tmp dir. Returns {hostPath, containerPath}. */
-async function downloadPhoto(ctx: Context, userName: string): Promise<{ hostPath: string; containerPath: string } | null> {
+async function downloadPhoto(ctx: Context, userName: string): Promise<DownloadedPhoto | null> {
   const photo = ctx.message?.photo;
   if (!photo || photo.length === 0) return null;
 
@@ -23,7 +36,7 @@ async function downloadPhoto(ctx: Context, userName: string): Promise<{ hostPath
   const userTmpDir = join(getUserDir(userName), "tmp");
   await mkdir(userTmpDir, { recursive: true });
   const ext = file.file_path.split(".").pop() || "jpg";
-  const filename = `photo-${Date.now()}.${ext}`;
+  const filename = `photo-${Date.now()}-${randomUUID()}.${ext}`;
   const hostPath = join(userTmpDir, filename);
 
   const buffer = Buffer.from(await response.arrayBuffer());
@@ -33,6 +46,100 @@ async function downloadPhoto(ctx: Context, userName: string): Promise<{ hostPath
   const containerPath = `/data/tmp/${filename}`;
 
   return { hostPath, containerPath };
+}
+
+function normalizeCaption(caption: string | undefined): string | null {
+  const trimmed = caption?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function getPhotoPrompt(caption: string | null, photoCount: number): string {
+  if (caption) return caption;
+  return photoCount > 1 ? "The user sent photos." : "The user sent a photo.";
+}
+
+function appendPhotoActivity(userName: string, photoCount: number, caption: string | null) {
+  const summary = photoCount > 1 ? `Received ${photoCount} photos` : "Received photo";
+  appendUserActivity(config.dataDir, {
+    timestamp: new Date().toISOString(),
+    userName,
+    type: "message_received",
+    status: "info",
+    summary: `${summary}${caption ? `: ${caption.replace(/\s+/g, " ").trim().slice(0, 100)}` : ""}`,
+  });
+}
+
+async function cleanupPhotos(photos: DownloadedPhoto[]): Promise<void> {
+  await Promise.all(photos.map((photo) => unlink(photo.hostPath).catch(() => {})));
+}
+
+async function processPhotoMessage(
+  ctx: Context,
+  brain: Brain,
+  userName: string,
+  downloads: Promise<DownloadedPhoto | null>[],
+  caption: string | null,
+): Promise<void> {
+  const photos = (await Promise.all(downloads)).filter((photo): photo is DownloadedPhoto => !!photo);
+  appendPhotoActivity(userName, Math.max(downloads.length, photos.length, 1), caption);
+
+  if (photos.length === 0) {
+    await ctx.reply("Sorry, I couldn't download that image.");
+    return;
+  }
+
+  const stopTyping = keepTyping(ctx);
+  try {
+    await brain.think(
+      getPhotoPrompt(caption, photos.length),
+      userName,
+      photos.map((photo) => photo.containerPath),
+    );
+  } finally {
+    stopTyping();
+    await cleanupPhotos(photos);
+  }
+}
+
+function getPhotoGroupKey(ctx: Context): string | null {
+  const mediaGroupId = ctx.message?.media_group_id;
+  if (!mediaGroupId) return null;
+  return `${ctx.chat?.id ?? ctx.from?.id ?? "unknown"}:${mediaGroupId}`;
+}
+
+async function flushPhotoGroup(key: string, brain: Brain): Promise<void> {
+  const group = pendingPhotoGroups.get(key);
+  if (!group) return;
+  pendingPhotoGroups.delete(key);
+  await processPhotoMessage(group.ctx, brain, group.userName, group.downloads, group.caption);
+}
+
+function queuePhotoGroup(ctx: Context, brain: Brain, userName: string): void {
+  const key = getPhotoGroupKey(ctx);
+  if (!key) return;
+
+  const caption = normalizeCaption(ctx.message?.caption);
+  const existing = pendingPhotoGroups.get(key);
+  if (existing) {
+    existing.ctx = ctx;
+    existing.caption = existing.caption || caption;
+    existing.downloads.push(downloadPhoto(ctx, userName));
+    clearTimeout(existing.timer);
+    existing.timer = setTimeout(() => {
+      void flushPhotoGroup(key, brain);
+    }, PHOTO_GROUP_SETTLE_MS);
+    return;
+  }
+
+  pendingPhotoGroups.set(key, {
+    ctx,
+    userName,
+    caption,
+    downloads: [downloadPhoto(ctx, userName)],
+    timer: setTimeout(() => {
+      void flushPhotoGroup(key, brain);
+    }, PHOTO_GROUP_SETTLE_MS),
+  });
 }
 
 function keepTyping(ctx: Context): () => void {
@@ -79,27 +186,20 @@ export function registerMessageHandler(
     handleBrainMessage(ctx, brain, data);
   });
 
-  bot.on("message:photo", (ctx) => {
+  bot.on("message:photo", async (ctx) => {
     const userName = getUserName(ctx.from?.id ?? 0);
-    const caption = ctx.message.caption || "The user sent a photo.";
-    appendUserActivity(config.dataDir, {
-      timestamp: new Date().toISOString(),
-      userName,
-      type: "message_received",
-      status: "info",
-      summary: `Received photo${ctx.message.caption ? `: ${caption.replace(/\s+/g, " ").trim().slice(0, 100)}` : ""}`,
-    });
 
-    downloadPhoto(ctx, userName).then((photo) => {
-      if (!photo) {
-        ctx.reply("Sorry, I couldn't download that image.");
-        return;
-      }
-      const stopTyping = keepTyping(ctx);
-      brain.think(caption, userName, [photo.containerPath]).finally(() => {
-        stopTyping();
-        unlink(photo.hostPath).catch(() => {});
-      });
-    });
+    if (ctx.message.media_group_id) {
+      queuePhotoGroup(ctx, brain, userName);
+      return;
+    }
+
+    await processPhotoMessage(
+      ctx,
+      brain,
+      userName,
+      [downloadPhoto(ctx, userName)],
+      normalizeCaption(ctx.message.caption),
+    );
   });
 }
