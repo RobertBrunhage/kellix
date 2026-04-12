@@ -1,0 +1,183 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const installCommand = 'curl -fsSL https://raw.githubusercontent.com/robertbrunhage/steve/main/install.sh | bash';
+---
+
+<Layout
+	title="Kellix"
+	description="Kellix is a Telegram-first household AI assistant you can self-host."
+>
+	<main class="page">
+		<section class="hero">
+			<p class="eyebrow">Kellix</p>
+			<h1>The self-hosted Telegram assistant for your home.</h1>
+			<p class="lead">
+				Kellix helps your household remember things, run workflows, and manage real setup without
+				turning chat into a place where credentials get pasted around.
+			</p>
+
+			<div class="install">
+				<div class="install-header">
+					<p class="install-label">Install</p>
+					<button class="copy-button" type="button" data-copy-command>
+						<span data-copy-label>Copy</span>
+					</button>
+				</div>
+				<pre><code>{installCommand}</code></pre>
+			</div>
+		</section>
+	</main>
+
+	<script is:inline>
+		const button = document.querySelector('[data-copy-command]');
+		const label = document.querySelector('[data-copy-label]');
+		const command = {JSON.stringify(installCommand)};
+
+		button?.addEventListener('click', async () => {
+			try {
+				await navigator.clipboard.writeText(command);
+				if (label) label.textContent = 'Copied';
+				window.setTimeout(() => {
+					if (label) label.textContent = 'Copy';
+				}, 1600);
+			} catch {
+				if (label) label.textContent = 'Failed';
+				window.setTimeout(() => {
+					if (label) label.textContent = 'Copy';
+				}, 1600);
+			}
+		});
+	</script>
+</Layout>
+
+<style>
+	.page {
+		padding: 32px 20px 72px;
+	}
+
+	.hero,
+	.grid {
+		max-width: 1120px;
+		margin: 0 auto;
+	}
+
+	.hero {
+		padding: 96px 0;
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		justify-content: center;
+	}
+
+	.eyebrow {
+		margin: 0 0 18px;
+		font-size: 0.8rem;
+		font-weight: 700;
+		letter-spacing: 0.14em;
+		text-transform: uppercase;
+		color: #78f0cb;
+	}
+
+	h1 {
+		max-width: 12ch;
+		margin: 0;
+		font-size: clamp(3rem, 8vw, 6.4rem);
+		line-height: 0.94;
+		letter-spacing: -0.06em;
+	}
+
+	.lead {
+		max-width: 720px;
+		margin: 28px 0 0;
+		font-size: clamp(1.05rem, 2vw, 1.35rem);
+		line-height: 1.7;
+		color: rgba(245, 247, 251, 0.78);
+		text-wrap: balance;
+	}
+
+	.install {
+		width: min(100%, 860px);
+		margin-top: 36px;
+		padding: 22px;
+		border: 1px solid rgba(245, 247, 251, 0.1);
+		border-radius: 24px;
+		background: rgba(8, 18, 33, 0.62);
+		backdrop-filter: blur(20px);
+	}
+
+	.install-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 12px;
+	}
+
+	.install-label {
+		margin: 0;
+		font-size: 0.82rem;
+		font-weight: 700;
+		letter-spacing: 0.12em;
+		text-transform: uppercase;
+		color: rgba(245, 247, 251, 0.62);
+	}
+
+	.copy-button {
+		padding: 10px 14px;
+		border: 1px solid rgba(245, 247, 251, 0.14);
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.05);
+		color: #f5f7fb;
+		font: inherit;
+		font-weight: 600;
+		cursor: pointer;
+	}
+
+	.copy-button:hover {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	pre {
+		margin: 0;
+		padding: 18px 20px;
+		overflow-x: auto;
+		border-radius: 18px;
+		background: rgba(3, 8, 16, 0.92);
+		border: 1px solid rgba(120, 240, 203, 0.16);
+	}
+
+	code {
+		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+		font-size: 0.96rem;
+		line-height: 1.7;
+		color: #dffef3;
+	}
+
+	@media (max-width: 640px) {
+		.page {
+			padding-inline: 16px;
+		}
+
+		.hero {
+			padding: 48px 0;
+		}
+
+		h1 {
+			max-width: none;
+			font-size: clamp(2.8rem, 16vw, 4.2rem);
+		}
+
+		.lead {
+			text-wrap: pretty;
+		}
+
+		.install {
+			padding: 16px;
+		}
+
+		pre {
+			padding: 16px;
+		}
+	}
+</style>
