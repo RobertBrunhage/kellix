@@ -34,6 +34,30 @@ export interface RenderUserOptions {
   browserCompanion?: BrowserCompanionStatus;
 }
 
+type ModelOption = { id: string; name: string };
+type ModelProvider = { id: string; name: string; models: ModelOption[] };
+
+function ensureCurrentModelIsSelectable(providers: ModelProvider[], currentModel: string): ModelProvider[] {
+  if (!currentModel.includes("/")) return providers;
+
+  const providerId = currentModel.split("/")[0] || "";
+  const modelId = currentModel.slice(currentModel.indexOf("/") + 1);
+  if (!providerId || !modelId) return providers;
+
+  const providerIndex = providers.findIndex((provider) => provider.id === providerId);
+  if (providerIndex === -1) {
+    return [...providers, { id: providerId, name: providerId, models: [{ id: modelId, name: modelId }] }];
+  }
+
+  const provider = providers[providerIndex]!;
+  if (provider.models.some((model) => model.id === modelId)) return providers;
+
+  const nextModels = [...provider.models, { id: modelId, name: modelId }]
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return providers.map((entry, index) => index === providerIndex ? { ...entry, models: nextModels } : entry);
+}
+
 function userTabsList(name: string, options?: RenderUserOptions, ocStatus?: string): Array<{ key: UserPageTab; label: string; href: string; indicator?: TabIndicator }> {
   const slug = encodeURIComponent(name);
   const telegramConnected = !!options?.telegramChatId;
@@ -319,8 +343,8 @@ export function renderUserIntegrationsPage(name: string, ocStatus: string, csrfT
 
 export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: string, csrfToken: string, options?: RenderUserOptions): string {
   const slug = encodeURIComponent(name);
-  const providers = options?.modelProviders || [];
   const currentModel = options?.currentModel || "";
+  const providers = ensureCurrentModelIsSelectable(options?.modelProviders || [], currentModel);
   const [currentProvider, currentModelId] = currentModel.includes("/")
     ? [currentModel.split("/")[0] || "", currentModel.slice(currentModel.indexOf("/") + 1)]
     : ["", currentModel];

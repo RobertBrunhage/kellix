@@ -16,6 +16,7 @@ import {
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { strict as assert } from "node:assert";
+import { renderUserAgentPage } from "../src/web/views/members.js";
 
 const testDir = join(tmpdir(), `kellix-test-${Date.now()}`);
 process.env.KELLIX_DIR = testDir;
@@ -698,7 +699,23 @@ async function run() {
     assert.equal(agentPage.status, 200);
     assert.match(agentPageHtml, /The model Kellix uses when responding to Telegram messages and running background tasks for this member/);
     assert.match(agentPageHtml, /openai\/gpt-5\.4-mini/);
-    assert.match(agentPageHtml, /No models available yet\. Start the agent first/);
+    assert.match(agentPageHtml, /action="\/users\/friend\/agent\/model"/);
+  });
+
+  test("web users: agent page keeps the configured model selectable when the runtime omits it", () => {
+    const hiddenModelHtml = renderUserAgentPage("friend", "running", "http://localhost:3456", "csrf-token", {
+      currentModel: "openai/gpt-5.4",
+      modelProviders: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          models: [{ id: "gpt-5.4-mini", name: "gpt-5.4-mini" }],
+        },
+      ],
+    });
+
+    assert.match(hiddenModelHtml, /"id":"gpt-5\.4"/);
+    assert.match(hiddenModelHtml, /"modelId":"gpt-5\.4"/);
   });
 
   const newSecretPage = await app.request("/users/friend/integrations/new", {
