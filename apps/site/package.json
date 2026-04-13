@@ -8,18 +8,19 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "node scripts/generate-og.mjs && astro build",
     "preview": "astro preview",
     "astro": "astro",
     "generate-types": "wrangler types"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^13.1.8",
+    "@resvg/resvg-js": "^2.6.2",
     "astro": "^6.1.5",
+    "satori": "^0.26.0",
     "wrangler": "^4.81.1"
   },
   "overrides": {
     "vite": "^7"
-  },
-  "devDependencies": {}
+  }
 }

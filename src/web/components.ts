@@ -35,20 +35,20 @@ export function jsonAttr(value: unknown): string {
 export const designTokensStyle = `
   <style>
     :root {
-      --bg: #111113;
-      --card: #18181b;
-      --card-hover: #1e1e22;
-      --border: #27272a;
-      --border-strong: #3f3f46;
-      --border-focus: #3b82f6;
-      --text: #fafafa;
-      --text-muted: #a1a1aa;
-      --text-subtle: #71717a;
-      --accent: #3b82f6;
-      --accent-hover: #2563eb;
-      --ok: #10b981;
-      --warn: #f59e0b;
-      --err: #ef4444;
+      --bg: #FAFAF7;
+      --card: #ffffff;
+      --card-hover: #f5f5f0;
+      --border: #e5e2db;
+      --border-strong: #d4d0c8;
+      --border-focus: #3d7a5f;
+      --text: #171717;
+      --text-muted: #737373;
+      --text-subtle: #a3a3a3;
+      --accent: #3d7a5f;
+      --accent-hover: #2d5e48;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --err: #dc2626;
       --radius: 0.5rem;
     }
     [hx-indicator].htmx-request,
@@ -77,13 +77,13 @@ export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 export type ButtonSize = "sm" | "md";
 
 const buttonBase =
-  "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-surface focus:ring-blue-500/40 disabled:opacity-50 disabled:cursor-not-allowed";
+  "inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-colors whitespace-nowrap focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white focus:ring-emerald-500/40 disabled:opacity-50 disabled:cursor-not-allowed";
 
 const buttonVariants: Record<ButtonVariant, string> = {
-  primary: "bg-blue-600 text-white hover:bg-blue-500",
-  secondary: "bg-zinc-800 text-zinc-200 hover:bg-zinc-700",
-  ghost: "bg-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/60",
-  danger: "bg-zinc-800 text-zinc-300 hover:bg-red-900 hover:text-red-200",
+  primary: "bg-neutral-900 text-white hover:bg-neutral-800",
+  secondary: "bg-white text-neutral-700 border border-neutral-200 hover:bg-neutral-50",
+  ghost: "bg-transparent text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100",
+  danger: "bg-white text-neutral-600 border border-neutral-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200",
 };
 
 const buttonSizes: Record<ButtonSize, string> = {
@@ -125,10 +125,10 @@ export function Button(opts: {
 export type Tone = "ok" | "warn" | "danger" | "neutral";
 
 const badgeTones: Record<Tone, string> = {
-  ok: "bg-emerald-950 text-emerald-300 border-emerald-800",
-  warn: "bg-amber-950 text-amber-300 border-amber-800",
-  danger: "bg-red-950 text-red-300 border-red-800",
-  neutral: "bg-zinc-900 text-zinc-400 border-border",
+  ok: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  warn: "bg-amber-50 text-amber-700 border-amber-200",
+  danger: "bg-red-50 text-red-700 border-red-200",
+  neutral: "bg-neutral-100 text-neutral-500 border-neutral-200",
 };
 
 export function Badge(opts: { tone: Tone; children: string; className?: string }): string {
@@ -139,10 +139,10 @@ export function Badge(opts: { tone: Tone; children: string; className?: string }
 export type DotState = "ok" | "warn" | "error" | "off";
 
 const dotColors: Record<DotState, string> = {
-  ok: "bg-emerald-400",
-  warn: "bg-amber-400",
-  error: "bg-red-400",
-  off: "bg-zinc-600",
+  ok: "bg-emerald-500",
+  warn: "bg-amber-500",
+  error: "bg-red-500",
+  off: "bg-neutral-300",
 };
 
 export function StatusDot(opts: { state: DotState; className?: string }): string {
@@ -154,7 +154,7 @@ export function StatusDot(opts: { state: DotState; className?: string }): string
 export type InputAppearance = "default" | "mono";
 
 export const inputClass =
-  "w-full px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white placeholder-zinc-600 focus:border-border-focus focus:outline-none transition-colors";
+  "w-full px-3 py-2 bg-white border border-neutral-200 rounded-lg text-sm text-neutral-900 placeholder-neutral-400 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 transition-colors";
 
 export const inputClassMono = `${inputClass} font-mono`;
 
@@ -178,14 +178,14 @@ export function Input(opts: {
   const type = opts.type ?? "text";
   const id = opts.id ?? opts.name;
   const label = opts.label
-    ? `<label for="${escapeHtml(id)}" class="block text-xs text-zinc-400 mb-1">${escapeHtml(opts.label)}</label>`
+    ? `<label for="${escapeHtml(id)}" class="block text-xs font-medium text-neutral-600 mb-1">${escapeHtml(opts.label)}</label>`
     : "";
   const value = opts.value !== undefined ? ` value="${escapeHtml(opts.value)}"` : "";
   const placeholder = opts.placeholder ? ` placeholder="${escapeHtml(opts.placeholder)}"` : "";
   const required = opts.required ? " required" : "";
   const autofocus = opts.autofocus ? " autofocus" : "";
   const autocomplete = opts.autocomplete ? ` autocomplete="${escapeHtml(opts.autocomplete)}"` : "";
-  const hint = opts.hint ? `<p class="text-xs text-zinc-600 mt-2">${opts.hint}</p>` : "";
+  const hint = opts.hint ? `<p class="text-xs text-neutral-400 mt-2">${opts.hint}</p>` : "";
   return `
     <div>
       ${label}
@@ -204,9 +204,9 @@ export function Select(opts: {
 }): string {
   const id = opts.id ?? opts.name;
   const label = opts.label
-    ? `<label for="${escapeHtml(id)}" class="block text-xs text-zinc-400 mb-1">${escapeHtml(opts.label)}</label>`
+    ? `<label for="${escapeHtml(id)}" class="block text-xs font-medium text-neutral-600 mb-1">${escapeHtml(opts.label)}</label>`
     : "";
-  const hint = opts.hint ? `<p class="text-xs text-zinc-600 mt-2">${opts.hint}</p>` : "";
+  const hint = opts.hint ? `<p class="text-xs text-neutral-400 mt-2">${opts.hint}</p>` : "";
   const opts_ = opts.options
     .map((o) => `<option value="${escapeHtml(o.value)}"${o.selected ? " selected" : ""}>${escapeHtml(o.label)}</option>`)
     .join("");
@@ -231,10 +231,10 @@ export function PageHeader(opts: {
   actions?: string;
 }): string {
   const back = opts.back
-    ? `<a href="${opts.back.href}" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; ${escapeHtml(opts.back.label)}</a>`
+    ? `<a href="${opts.back.href}" class="text-sm text-neutral-400 hover:text-neutral-700 transition-colors">&larr; ${escapeHtml(opts.back.label)}</a>`
     : "";
   const subtitle = opts.subtitle
-    ? `<p class="text-sm text-zinc-500 mt-1">${escapeHtml(opts.subtitle)}</p>`
+    ? `<p class="text-sm text-neutral-500 mt-1">${escapeHtml(opts.subtitle)}</p>`
     : "";
   const badge = opts.badge ?? "";
   const actions = opts.actions
@@ -245,7 +245,7 @@ export function PageHeader(opts: {
     <div class="flex items-start justify-between gap-4 ${opts.back ? "mt-4" : ""} mb-6">
       <div class="min-w-0">
         <div class="flex items-center gap-3 flex-wrap">
-          <h1 class="text-xl font-semibold text-white">${escapeHtml(opts.title)}</h1>
+          <h1 class="text-xl font-display font-bold text-neutral-900">${escapeHtml(opts.title)}</h1>
           ${badge}
         </div>
         ${subtitle}
@@ -267,8 +267,8 @@ export function Section(opts: {
     ? `
       <div class="flex items-start justify-between gap-4 mb-4">
         <div class="min-w-0">
-          ${opts.title ? `<h2 class="text-sm font-medium text-white">${escapeHtml(opts.title)}</h2>` : ""}
-          ${opts.description ? `<p class="text-xs text-zinc-500 mt-1">${escapeHtml(opts.description)}</p>` : ""}
+          ${opts.title ? `<h2 class="text-sm font-medium text-neutral-900">${escapeHtml(opts.title)}</h2>` : ""}
+          ${opts.description ? `<p class="text-xs text-neutral-500 mt-1">${escapeHtml(opts.description)}</p>` : ""}
         </div>
         ${opts.badge ?? ""}
         ${opts.actions ? `<div class="flex gap-2 flex-shrink-0">${opts.actions}</div>` : ""}
@@ -276,7 +276,7 @@ export function Section(opts: {
     `
     : "";
   return `
-    <div class="bg-surface-card border border-border rounded-lg p-5 ${opts.className ?? ""}">
+    <div class="bg-white border border-neutral-200 rounded-lg p-5 ${opts.className ?? ""}">
       ${head}
       ${opts.children}
     </div>
@@ -310,8 +310,8 @@ export function Tabs(opts: {
         ${opts.items.map((tab) => {
           const active = tab.key === opts.active;
           const cls = active
-            ? "bg-zinc-100 text-zinc-900 border-zinc-100"
-            : "bg-surface-card text-zinc-400 border-border hover:text-white hover:border-zinc-600";
+            ? "bg-neutral-900 text-white border-neutral-900"
+            : "bg-white text-neutral-500 border-neutral-200 hover:text-neutral-900 hover:border-neutral-400";
           const hxAttrs = opts.swapTarget
             ? ` hx-get="${tab.href}" hx-target="${opts.swapTarget}" hx-select="${opts.swapTarget}" hx-swap="outerHTML" hx-push-url="true"`
             : "";
@@ -330,8 +330,8 @@ export function Tabs(opts: {
       ${opts.items.map((tab) => {
         const active = tab.key === opts.active;
         const cls = active
-          ? "border-blue-500 text-white"
-          : "border-transparent text-zinc-400 hover:text-white hover:border-zinc-700";
+          ? "border-neutral-900 text-neutral-900"
+          : "border-transparent text-neutral-400 hover:text-neutral-700 hover:border-neutral-300";
         const hxAttrs = opts.swapTarget
           ? ` hx-get="${tab.href}" hx-target="${opts.swapTarget}" hx-select="${opts.swapTarget}" hx-swap="outerHTML" hx-push-url="true"`
           : "";
@@ -347,7 +347,7 @@ function renderTabIndicator(indicator: TabIndicator | undefined): string {
     return ` <span class="inline-block w-1.5 h-1.5 rounded-full ${dotColors[indicator.state]}"></span>`;
   }
   if (indicator.kind === "count" && indicator.value > 0) {
-    return ` <span class="text-[11px] px-1.5 py-px rounded-full bg-zinc-800 text-zinc-400 font-medium tabular-nums">${indicator.value}</span>`;
+    return ` <span class="text-[11px] px-1.5 py-px rounded-full bg-neutral-100 text-neutral-500 font-medium tabular-nums">${indicator.value}</span>`;
   }
   return "";
 }
@@ -358,9 +358,9 @@ export function EmptyState(opts: {
   action?: string;
 }): string {
   return `
-    <div class="bg-surface-card border border-border border-dashed rounded-lg p-8 text-center">
-      <p class="text-sm text-zinc-300 font-medium">${escapeHtml(opts.title)}</p>
-      ${opts.description ? `<p class="text-xs text-zinc-500 mt-2">${escapeHtml(opts.description)}</p>` : ""}
+    <div class="bg-white border border-neutral-200 border-dashed rounded-lg p-8 text-center">
+      <p class="text-sm text-neutral-700 font-medium">${escapeHtml(opts.title)}</p>
+      ${opts.description ? `<p class="text-xs text-neutral-400 mt-2">${escapeHtml(opts.description)}</p>` : ""}
       ${opts.action ? `<div class="mt-4 flex justify-center">${opts.action}</div>` : ""}
     </div>
   `;

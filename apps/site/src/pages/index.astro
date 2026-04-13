@@ -1,104 +1,283 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import PhoneMockup from '../components/PhoneMockup.astro';
 
 const installCommand = 'curl -fsSL https://raw.githubusercontent.com/robertbrunhage/kellix/main/install.sh | bash';
 ---
 
 <Layout
 	title="Kellix"
-	description="Kellix is a self-hosted Telegram assistant for calories, workouts, goals, and household routines."
+	description="A self-hosted AI assistant on Telegram. Track calories from a photo, get coached through workouts, connect your devices, and build any integration you need."
 >
-	<main class="page">
+	<main>
+		<!-- Hero -->
 		<section class="hero">
-			<p class="eyebrow">Kellix</p>
-			<h1>Your Telegram assistant for health, goals, and life at home.</h1>
-			<p class="lead">
-				Track calories, workouts, weight, reminders, routines, and whatever else your household
-				needs. Kellix runs in your own environment, with each user getting an isolated agent that
-				can be extended with tools, scripts, and integrations.
-			</p>
-
-			<div class="install">
-				<div class="install-header">
-					<p class="install-label">Install</p>
-					<button class="copy-button" type="button" data-copy-command>
-						<span data-copy-label>Copy</span>
-					</button>
+			<div class="container">
+				<div class="hero-brand">
+					<svg class="hero-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+						<path d="M32 4 A28 28 0 0 1 60 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/>
+						<path d="M32 60 A28 28 0 0 1 4 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/>
+					</svg>
+					<h1>Kellix</h1>
 				</div>
-				<pre><code>{installCommand}</code></pre>
+				<p class="lead">
+					A self-hosted AI assistant that actually does things. You talk to it
+					on Telegram. Track food, coach workouts, browse the web, build integrations.
+					One for every person in your house.
+				</p>
+				<div class="install-box">
+					<div class="install-header">
+						<p class="install-label">Install</p>
+						<button class="copy-btn" type="button" data-copy-command>
+							<span data-copy-label>Copy</span>
+						</button>
+					</div>
+					<pre><code>{installCommand}</code></pre>
+				</div>
 			</div>
 		</section>
+
+		<!-- How it works -->
+		<section class="how-it-works">
+			<div class="container how-it-works-grid">
+				<div class="how-it-works-content">
+					<p class="eyebrow">How it works</p>
+					<h2>One command. Three minutes. Done.</h2>
+					<div class="steps">
+						<div class="step">
+							<span class="step-number">1</span>
+							<div class="step-text">
+								<h3>Install</h3>
+								<p>Run one command. Kellix starts on your machine inside Docker.</p>
+							</div>
+						</div>
+						<div class="step">
+							<span class="step-number">2</span>
+							<div class="step-text">
+								<h3>Set up</h3>
+								<p>Open the dashboard in your browser. Add your family, connect your Telegram bot.</p>
+							</div>
+						</div>
+						<div class="step">
+							<span class="step-number">3</span>
+							<div class="step-text">
+								<h3>Use it</h3>
+								<p>Everyone messages Kellix on Telegram. Each person gets their own private agent with their own memory.</p>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="how-it-works-visual">
+					<PhoneMockup />
+				</div>
+			</div>
+		</section>
+
+		<!-- Conversations -->
+		<section class="conversations">
+			<div class="container">
+				<p class="eyebrow">What it feels like</p>
+				<h2>Talk to it like a person.</h2>
+				<div class="chat-grid">
+					<div class="chat-card">
+						<div class="chat-bubble chat-user">
+							<span class="chat-image-placeholder">📷 lunch.jpg</span>
+						</div>
+						<div class="chat-bubble chat-user">Log this</div>
+						<div class="chat-bubble chat-kellix">Black bean bowl with rice, avocado, and roasted peppers. Logged: 520 kcal, 18g protein, 16g fat, 72g carbs.</div>
+					</div>
+					<div class="chat-card">
+						<div class="chat-bubble chat-user">I want a push/pull/legs routine for 4 days a week</div>
+						<div class="chat-bubble chat-kellix">Here's your split. Today is push day. Ready to start? I'll guide you through each set.</div>
+					</div>
+					<div class="chat-card">
+						<div class="chat-bubble chat-user">Can you build me an integration that pulls my Goodreads reading list?</div>
+						<div class="chat-bubble chat-kellix">Done. I created a new skill that fetches your shelf via their RSS feed. Want me to check it weekly and update your reading log?</div>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Features -->
+		<section class="features">
+			<div class="container">
+				<p class="eyebrow">Capabilities</p>
+				<h2>Works like ChatGPT. Runs on your machine.</h2>
+				<div class="feature-grid">
+					<div class="feature-card">
+						<h3>Tracks calories from a photo</h3>
+						<p>Send a picture of your meal or scan a barcode. Kellix checks against a real food database and logs accurate macros.</p>
+					</div>
+					<div class="feature-card">
+						<h3>Coaches your workouts</h3>
+						<p>Designs routines, guides you through sets, and tracks your progress over time. Like a personal trainer in your pocket.</p>
+					</div>
+					<div class="feature-card">
+						<h3>Connects to your devices</h3>
+						<p>Withings scale, custom APIs, anything you want. Build new integrations through chat. Kellix writes the code, tests it, and starts using it.</p>
+					</div>
+					<div class="feature-card">
+						<h3>Searches the web</h3>
+						<p>Web search, browsing, screenshots. Works like ChatGPT or Gemini, but self-hosted and private.</p>
+					</div>
+					<div class="feature-card">
+						<h3>One person or a whole family</h3>
+						<p>Each person gets their own assistant with private memory and private conversations. Share household files when you want to.</p>
+					</div>
+					<div class="feature-card">
+						<h3>Has its own browser</h3>
+						<p>Each assistant gets a built-in browser to look things up, fill out forms, and take screenshots. Power users can connect their own browser for full remote control.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Under the hood -->
+		<section class="under-the-hood">
+			<div class="container">
+				<p class="eyebrow">Under the hood</p>
+				<h2>Built on OpenCode. Bring any model.</h2>
+				<div class="tech-items">
+					<div class="tech-item">
+						<span class="tech-label">Providers</span>
+						<h3>Any AI provider or your own</h3>
+						<p>OpenAI, Google, or any OpenAI-compatible API. Run Ollama locally and your data never leaves your network. Switch per user or for the whole household.</p>
+					</div>
+					<div class="tech-item">
+						<span class="tech-label">Architecture</span>
+						<h3>Isolated per-user containers</h3>
+						<p>Each person runs in their own OpenCode container with its own workspace, memory, and tools. Nothing leaks between users.</p>
+					</div>
+					<div class="tech-item">
+						<span class="tech-label">Extensibility</span>
+						<h3>Skills are just markdown</h3>
+						<p>A skill is a folder with a SKILL.md and optional scripts. No SDK. Kellix reads the instructions and uses them. You can build new ones through chat.</p>
+					</div>
+					<div class="tech-item">
+						<span class="tech-label">Security</span>
+						<h3>Encrypted vault for secrets</h3>
+						<p>Credentials are stored encrypted and injected at runtime. The AI orchestrates workflows but never handles raw values.</p>
+					</div>
+				</div>
+			</div>
+		</section>
+
+		<!-- Bottom CTA -->
+		<section class="bottom-cta">
+			<div class="container">
+				<h2>Get started.</h2>
+				<p class="cta-lead">Docker is the only prerequisite. Run the install command, finish setup in your browser, and connect Telegram.</p>
+				<div class="install-box">
+					<div class="install-header">
+						<p class="install-label">Install</p>
+						<button class="copy-btn" type="button" data-copy-command-bottom>
+							<span data-copy-label-bottom>Copy</span>
+						</button>
+					</div>
+					<pre><code>{installCommand}</code></pre>
+				</div>
+			</div>
+		</section>
+
+		<!-- Footer -->
+		<footer class="footer">
+			<div class="container footer-inner">
+				<p>Kellix is open source.</p>
+				<a href="https://github.com/robertbrunhage/kellix" target="_blank" rel="noopener">GitHub</a>
+			</div>
+		</footer>
 	</main>
 
 	<script is:inline define:vars={{ installCommand }}>
-		const button = document.querySelector('[data-copy-command]');
-		const label = document.querySelector('[data-copy-label]');
-
-		button?.addEventListener('click', async () => {
-			try {
-				await navigator.clipboard.writeText(installCommand);
-				if (label) label.textContent = 'Copied';
-				window.setTimeout(() => {
-					if (label) label.textContent = 'Copy';
-				}, 1600);
-			} catch {
-				if (label) label.textContent = 'Failed';
-				window.setTimeout(() => {
-					if (label) label.textContent = 'Copy';
-				}, 1600);
-			}
-		});
+		function setupCopyButton(buttonSelector, labelSelector) {
+			const button = document.querySelector(buttonSelector);
+			const label = document.querySelector(labelSelector);
+			button?.addEventListener('click', async () => {
+				try {
+					await navigator.clipboard.writeText(installCommand);
+					if (label) label.textContent = 'Copied';
+					window.setTimeout(() => { if (label) label.textContent = 'Copy'; }, 1600);
+				} catch {
+					if (label) label.textContent = 'Failed';
+					window.setTimeout(() => { if (label) label.textContent = 'Copy'; }, 1600);
+				}
+			});
+		}
+		setupCopyButton('[data-copy-command]', '[data-copy-label]');
+		setupCopyButton('[data-copy-command-bottom]', '[data-copy-label-bottom]');
 	</script>
 </Layout>
 
 <style>
-	.page {
-		padding: 24px 20px;
+	/* ---- Layout ---- */
+
+	.container {
+		max-width: 1080px;
+		margin: 0 auto;
+		padding: 0 24px;
 	}
 
-	.hero {
-		max-width: 1120px;
-		margin: 0 auto;
-		min-height: calc(100vh - 48px);
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-	}
+	/* ---- Shared ---- */
 
 	.eyebrow {
-		margin: 0 0 18px;
-		font-size: 0.8rem;
-		font-weight: 700;
+		margin: 0 0 16px;
+		font-size: 0.78rem;
+		font-weight: 600;
 		letter-spacing: 0.14em;
 		text-transform: uppercase;
-		color: #78f0cb;
+		color: var(--accent);
+	}
+
+	h1, h2, h3 {
+		font-family: 'Fraunces', Georgia, serif;
+	}
+
+	/* ---- Hero ---- */
+
+	.hero {
+		padding: 140px 0 80px;
+	}
+
+.hero-brand {
+		display: flex;
+		align-items: center;
+		gap: clamp(16px, 2.5vw, 28px);
+	}
+
+	.hero-logo {
+		width: clamp(56px, 8vw, 88px);
+		height: clamp(56px, 8vw, 88px);
+		color: var(--text);
+		flex-shrink: 0;
 	}
 
 	h1 {
-		max-width: 12ch;
 		margin: 0;
-		font-size: clamp(3rem, 8vw, 6.4rem);
-		line-height: 0.94;
-		letter-spacing: -0.06em;
+		font-size: clamp(4rem, 10vw, 8rem);
+		font-weight: 800;
+		line-height: 0.96;
+		letter-spacing: -0.04em;
+		color: var(--text);
 	}
 
 	.lead {
-		max-width: 720px;
-		margin: 28px 0 0;
-		font-size: clamp(1.05rem, 2vw, 1.35rem);
-		line-height: 1.7;
-		color: rgba(245, 247, 251, 0.78);
+		max-width: 640px;
+		margin: 24px 0 0;
+		font-size: clamp(1.05rem, 1.8vw, 1.25rem);
+		line-height: 1.75;
+		color: var(--text-secondary);
 		text-wrap: balance;
 	}
 
-	.install {
-		width: min(100%, 860px);
-		margin-top: 32px;
+	/* ---- Install box ---- */
+
+	.install-box {
+		width: fit-content;
+		max-width: 100%;
+		margin-top: 36px;
 		padding: 20px;
-		border: 1px solid rgba(245, 247, 251, 0.1);
-		border-radius: 24px;
-		background: rgba(8, 18, 33, 0.62);
-		backdrop-filter: blur(20px);
+		border: 1px solid var(--warm-100);
+		border-radius: 20px;
 	}
 
 	.install-header {
@@ -111,72 +290,354 @@ const installCommand = 'curl -fsSL https://raw.githubusercontent.com/robertbrunh
 
 	.install-label {
 		margin: 0;
-		font-size: 0.82rem;
-		font-weight: 700;
+		font-size: 0.78rem;
+		font-weight: 600;
 		letter-spacing: 0.12em;
 		text-transform: uppercase;
-		color: rgba(245, 247, 251, 0.62);
+		color: var(--text-muted);
 	}
 
-	.copy-button {
-		padding: 10px 14px;
-		border: 1px solid rgba(245, 247, 251, 0.14);
+	.copy-btn {
+		padding: 8px 16px;
+		border: 1px solid var(--warm-100);
 		border-radius: 999px;
-		background: rgba(255, 255, 255, 0.05);
-		color: #f5f7fb;
+		background: #fff;
+		color: var(--text);
 		font: inherit;
+		font-size: 0.85rem;
 		font-weight: 600;
 		cursor: pointer;
+		transition: background 150ms ease;
 	}
 
-	.copy-button:hover {
-		background: rgba(255, 255, 255, 0.1);
+	.copy-btn:hover {
+		background: var(--warm-50);
+	}
+
+	.copy-btn:active {
+		transform: scale(0.98);
 	}
 
 	pre {
 		margin: 0;
-		padding: 18px 20px;
+		padding: 16px 20px;
 		overflow-x: auto;
-		border-radius: 18px;
-		background: rgba(3, 8, 16, 0.92);
-		border: 1px solid rgba(120, 240, 203, 0.16);
+		border-radius: 14px;
+		background: var(--text);
 	}
 
 	code {
 		font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-		font-size: 0.96rem;
+		font-size: 0.92rem;
 		line-height: 1.7;
-		color: #dffef3;
+		color: #f5f5f5;
 	}
 
-	@media (max-width: 640px) {
-		.page {
-			padding-inline: 16px;
-		}
+	/* ---- How it works ---- */
 
+	.how-it-works {
+		padding: 80px 0;
+	}
+
+	.how-it-works-grid {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 64px;
+		align-items: center;
+	}
+
+	.how-it-works h2 {
+		margin: 0 0 40px;
+		font-size: clamp(1.8rem, 4vw, 2.8rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.how-it-works-visual {
+		display: flex;
+		justify-content: center;
+	}
+
+	.steps {
+		display: flex;
+		flex-direction: column;
+		gap: 32px;
+	}
+
+	.step {
+		display: flex;
+		gap: 16px;
+		align-items: flex-start;
+	}
+
+	.step-number {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 32px;
+		height: 32px;
+		border-radius: 999px;
+		background: var(--text);
+		color: #fff;
+		font-size: 0.82rem;
+		font-weight: 600;
+		flex-shrink: 0;
+	}
+
+	.step-text h3 {
+		margin: 0 0 4px;
+		font-size: 1.05rem;
+		font-weight: 700;
+		line-height: 1.3;
+		color: var(--text);
+	}
+
+	.step-text p {
+		margin: 0;
+		font-size: 0.93rem;
+		line-height: 1.65;
+		color: var(--text-secondary);
+	}
+
+	/* ---- Conversations ---- */
+
+	.conversations {
+		padding: 80px 0;
+	}
+
+	.conversations h2 {
+		margin: 0 0 48px;
+		font-size: clamp(1.8rem, 4vw, 2.8rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.chat-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 20px;
+	}
+
+	.chat-card {
+		padding: 24px;
+		border-radius: 20px;
+		background: var(--warm-50);
+		border: 1px solid var(--warm-100);
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+
+	.chat-bubble {
+		padding: 12px 16px;
+		border-radius: 14px;
+		font-size: 0.92rem;
+		line-height: 1.55;
+		width: fit-content;
+		max-width: 92%;
+	}
+
+	.chat-user {
+		background: var(--text);
+		color: #fff;
+		align-self: flex-end;
+		border-bottom-right-radius: 4px;
+	}
+
+	.chat-kellix {
+		background: #fff;
+		color: var(--text-secondary);
+		border: 1px solid var(--warm-100);
+		border-bottom-left-radius: 4px;
+	}
+
+	.chat-image-placeholder {
+		font-size: 0.85rem;
+		opacity: 0.8;
+	}
+
+	/* ---- Features ---- */
+
+	.features {
+		padding: 80px 0;
+	}
+
+	.features h2 {
+		margin: 0 0 48px;
+		font-size: clamp(1.8rem, 4vw, 2.8rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.feature-grid {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: 20px;
+	}
+
+	.feature-card {
+		padding: 32px;
+		border-radius: 20px;
+		background: var(--warm-50);
+		border: 1px solid var(--warm-100);
+	}
+
+	.feature-card h3 {
+		margin: 0 0 10px;
+		font-size: 1.15rem;
+		font-weight: 700;
+		line-height: 1.3;
+		color: var(--text);
+	}
+
+	.feature-card p {
+		margin: 0;
+		font-size: 0.93rem;
+		line-height: 1.65;
+		color: var(--text-secondary);
+	}
+
+	/* ---- Under the hood ---- */
+
+	.under-the-hood {
+		padding: 80px 0;
+		background: var(--warm-50);
+		border-top: 1px solid var(--warm-100);
+		border-bottom: 1px solid var(--warm-100);
+	}
+
+	.under-the-hood h2 {
+		margin: 0 0 48px;
+		font-size: clamp(1.8rem, 4vw, 2.8rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.tech-items {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: 48px 64px;
+	}
+
+	.tech-label {
+		display: block;
+		font-size: 0.72rem;
+		font-weight: 600;
+		letter-spacing: 0.16em;
+		text-transform: uppercase;
+		color: var(--text-muted);
+		margin-bottom: 12px;
+	}
+
+	.tech-item h3 {
+		margin: 0 0 8px;
+		font-size: 1.25rem;
+		font-weight: 700;
+		line-height: 1.3;
+		color: var(--text);
+	}
+
+	.tech-item p {
+		margin: 0;
+		font-size: 0.93rem;
+		line-height: 1.7;
+		color: var(--text-secondary);
+	}
+
+	/* ---- Bottom CTA ---- */
+
+	.bottom-cta {
+		padding: 80px 0;
+	}
+
+	.bottom-cta h2 {
+		margin: 0;
+		font-size: clamp(1.8rem, 4vw, 2.8rem);
+		font-weight: 700;
+		letter-spacing: -0.03em;
+		line-height: 1.1;
+	}
+
+	.cta-lead {
+		max-width: 560px;
+		margin: 16px 0 0;
+		font-size: 1.05rem;
+		line-height: 1.7;
+		color: var(--text-secondary);
+	}
+
+	/* ---- Footer ---- */
+
+	.footer {
+		padding: 40px 0;
+		border-top: 1px solid var(--warm-100);
+	}
+
+	.footer-inner {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+
+	.footer p {
+		margin: 0;
+		font-size: 0.88rem;
+		color: var(--text-muted);
+	}
+
+	.footer a {
+		font-size: 0.88rem;
+		font-weight: 500;
+		color: var(--text-secondary);
+		text-decoration: none;
+		transition: color 150ms ease;
+	}
+
+	.footer a:hover {
+		color: var(--text);
+	}
+
+	/* ---- Responsive ---- */
+
+	@media (max-width: 768px) {
 		.hero {
-			min-height: calc(100vh - 48px);
+			padding: 80px 0 60px;
 		}
 
-		h1 {
-			max-width: none;
-			font-size: clamp(2.8rem, 16vw, 4.2rem);
+
+		.how-it-works-grid {
+			grid-template-columns: 1fr;
 		}
 
-		.lead {
-			text-wrap: pretty;
+		.tech-items {
+			grid-template-columns: 1fr;
 		}
 
-		.install {
+		.chat-grid {
+			grid-template-columns: 1fr;
+		}
+
+		.feature-grid {
+			grid-template-columns: 1fr;
+		}
+
+	}
+
+	@media (max-width: 480px) {
+		.container {
+			padding: 0 16px;
+		}
+
+		.install-box {
 			padding: 16px;
-		}
-
-		.install-header {
-			align-items: flex-start;
 		}
 
 		pre {
-			padding: 16px;
+			padding: 14px 16px;
 		}
 	}
 </style>

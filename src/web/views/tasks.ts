@@ -44,22 +44,22 @@ function renderJobRow(entry: ScheduledEntry & { nextRunAt: string | null }, csrf
   ` : "";
 
   return `
-    <div class="bg-surface-card border border-border rounded-lg p-4 hover:border-zinc-600 transition-colors">
+    <div class="bg-white border border-border rounded-lg p-4 hover:border-neutral-400 transition-colors">
       <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap mb-3">
-            <a href="/users/${slug}" class="text-sm font-medium text-white hover:text-blue-300 transition-colors capitalize">${escapeHtml(entry.userName)}</a>
-            <span class="text-zinc-700">/</span>
-            <span class="text-sm text-zinc-300">${escapeHtml(entry.name)}</span>
+            <a href="/users/${slug}" class="text-sm font-medium text-neutral-900 hover:text-emerald-600 transition-colors capitalize">${escapeHtml(entry.userName)}</a>
+            <span class="text-neutral-300">/</span>
+            <span class="text-sm text-neutral-600">${escapeHtml(entry.name)}</span>
             ${jobStatusBadge(entry)}
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-500">
-            <div><span class="text-zinc-600">Schedule:</span> ${schedule}</div>
-            <div><span class="text-zinc-600">Next run:</span> ${escapeHtml(formatDateTime(entry.nextRunAt, entry.timezone))}</div>
-            <div><span class="text-zinc-600">Last run:</span> ${escapeHtml(formatDateTime(entry.lastRunAt, entry.timezone))}</div>
-            <div><span class="text-zinc-600">Last result:</span> ${escapeHtml(entry.lastStatus ? titleCase(entry.lastStatus) : entry.kind === "heartbeat" ? "Automatic" : "Not run yet")}</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-neutral-400">
+            <div><span class="text-neutral-400">Schedule:</span> ${schedule}</div>
+            <div><span class="text-neutral-400">Next run:</span> ${escapeHtml(formatDateTime(entry.nextRunAt, entry.timezone))}</div>
+            <div><span class="text-neutral-400">Last run:</span> ${escapeHtml(formatDateTime(entry.lastRunAt, entry.timezone))}</div>
+            <div><span class="text-neutral-400">Last result:</span> ${escapeHtml(entry.lastStatus ? titleCase(entry.lastStatus) : entry.kind === "heartbeat" ? "Automatic" : "Not run yet")}</div>
           </div>
-          ${entry.lastError ? `<p class="text-xs text-red-300 mt-3">${escapeHtml(entry.lastError)}</p>` : ""}
+          ${entry.lastError ? `<p class="text-xs text-red-600 mt-3">${escapeHtml(entry.lastError)}</p>` : ""}
         </div>
         ${actions}
       </div>
@@ -79,8 +79,8 @@ export interface RenderJobsPageOptions {
 
 function jobsFilterChip(label: string, href: string, active: boolean): string {
   const cls = active
-    ? "bg-zinc-100 text-zinc-900 border-zinc-100"
-    : "bg-surface-card text-zinc-400 border-border hover:text-white hover:border-zinc-600";
+    ? "bg-neutral-900 text-white border-neutral-900"
+    : "bg-white text-neutral-500 border-border hover:text-neutral-900 hover:border-neutral-400";
   return `<a href="${href}" class="px-3 py-1.5 text-xs rounded-full border transition-colors whitespace-nowrap ${cls}">${escapeHtml(label)}</a>`;
 }
 
@@ -110,12 +110,12 @@ export function renderJobsPage(opts: RenderJobsPageOptions): string {
   const filterBar = `
     <div class="mb-6 space-y-3">
       <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-xs text-zinc-600 uppercase tracking-wide mr-1">Status</span>
+        <span class="text-xs text-neutral-400 uppercase tracking-wide mr-1">Status</span>
         ${statusChips}
       </div>
       ${memberNames.length > 1 ? `
       <div class="flex items-center gap-2 flex-wrap">
-        <span class="text-xs text-zinc-600 uppercase tracking-wide mr-1">Member</span>
+        <span class="text-xs text-neutral-400 uppercase tracking-wide mr-1">Member</span>
         ${memberChips}
       </div>
       ` : ""}

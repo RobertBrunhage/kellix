@@ -28,7 +28,7 @@ export interface RenderHomeOptions {
 function renderMemberCard(member: MemberSummary): string {
   const dotState: "ok" | "warn" | "off" = member.status === "ok" ? "ok" : member.status === "error" ? "warn" : "off";
   const statusLabel = member.status === "ok" ? "Agent running" : member.status === "error" ? "Agent unavailable" : "Agent paused";
-  const statusTone = member.status === "ok" ? "text-emerald-400" : member.status === "error" ? "text-amber-300" : "text-zinc-500";
+  const statusTone = member.status === "ok" ? "text-emerald-600" : member.status === "error" ? "text-amber-600" : "text-neutral-400";
 
   const integrationsLine = member.integrationCount === 0
     ? "No integrations"
@@ -37,16 +37,16 @@ function renderMemberCard(member: MemberSummary): string {
   const activityLine = member.lastActivityAt ? `Active ${formatRelative(member.lastActivityAt)}` : "No activity yet";
 
   return `
-    <a href="/users/${encodeURIComponent(member.name)}" class="bg-surface-card border border-border rounded-lg p-5 hover:border-zinc-500 transition-colors block group">
+    <a href="/users/${encodeURIComponent(member.name)}" class="bg-white border border-border rounded-lg p-5 hover:border-neutral-400 transition-colors block group">
       <div class="flex items-center justify-between mb-3">
-        <span class="text-base font-medium text-white capitalize truncate">${escapeHtml(member.name)}</span>
-        <span class="text-zinc-600 group-hover:text-zinc-400 transition-colors">&rarr;</span>
+        <span class="text-base font-medium text-neutral-900 capitalize truncate">${escapeHtml(member.name)}</span>
+        <span class="text-neutral-400 group-hover:text-neutral-500 transition-colors">&rarr;</span>
       </div>
       <div class="flex items-center gap-2 mb-3">
         ${StatusDot({ state: dotState })}
         <span class="text-xs ${statusTone}">${statusLabel}</span>
       </div>
-      <ul class="space-y-1 text-xs text-zinc-500">
+      <ul class="space-y-1 text-xs text-neutral-400">
         <li>${integrationsLine}</li>
         <li>${telegramLine}</li>
         <li>${activityLine}</li>
@@ -91,8 +91,8 @@ export function renderHome(opts: RenderHomeOptions): string {
     <div x-data="{ open: false }" class="mb-6">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div class="min-w-0">
-          <h1 class="text-2xl font-semibold text-white">Members</h1>
-          <p class="text-sm text-zinc-500 mt-1">Each member has their own agent, integrations, and Telegram link.</p>
+          <h1 class="text-2xl font-display font-bold text-neutral-900">Members</h1>
+          <p class="text-sm text-neutral-400 mt-1">Each member has their own agent, integrations, and Telegram link.</p>
         </div>
         ${Button({
           variant: "primary",
@@ -102,13 +102,13 @@ export function renderHome(opts: RenderHomeOptions): string {
           children: "+ Add member",
         })}
       </div>
-      <div x-show="open" x-cloak x-transition.duration.150ms class="bg-surface-card border border-border rounded-lg p-5 mb-4">
+      <div x-show="open" x-cloak x-transition.duration.150ms class="bg-white border border-border rounded-lg p-5 mb-4">
         <form method="POST" action="/users/add" class="flex flex-col sm:flex-row gap-3 sm:items-end">
           ${hiddenCsrf(csrfToken)}
           <div class="flex-1">
-            <label for="member_name" class="block text-xs text-zinc-400 mb-1">Member name</label>
+            <label for="member_name" class="block text-xs text-neutral-500 mb-1">Member name</label>
             <input id="member_name" type="text" name="name" placeholder="e.g. robert" required class="${inputClass}">
-            <p class="text-xs text-zinc-600 mt-2">Lowercase letters and dashes only. They'll get their own agent and Telegram link.</p>
+            <p class="text-xs text-neutral-400 mt-2">Lowercase letters and dashes only. They'll get their own agent and Telegram link.</p>
           </div>
           ${Button({ variant: "primary", children: "Add member" })}
         </form>
@@ -126,13 +126,13 @@ export function renderHome(opts: RenderHomeOptions): string {
   const overallTone: Tone = healthy ? "ok" : "warn";
 
   const statusStrip = `
-    <div class="mt-10 pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-zinc-600">
+    <div class="mt-10 pt-4 border-t border-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs text-neutral-400">
       <div class="flex items-center gap-2 flex-wrap">
         ${Badge({ tone: overallTone, children: healthy ? "All systems healthy" : "Degraded" })}
         ${Badge({ tone: telegramTone, children: telegramLabel })}
         <span>${c.scheduler.reminders} scheduled task${c.scheduler.reminders === 1 ? "" : "s"}</span>
       </div>
-      <span class="text-zinc-700">Uptime ${formatUptime(uptime)}</span>
+      <span class="text-neutral-300">Uptime ${formatUptime(uptime)}</span>
     </div>
   `;
 

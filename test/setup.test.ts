@@ -538,7 +538,7 @@ async function run() {
 
   test("web jobs: jobs page shows scheduled jobs across users", () => {
     assert.equal(jobsPage.status, 200);
-    assert.match(jobsHtml, /<h1 class="text-xl font-semibold text-white">Tasks<\/h1>/);
+    assert.match(jobsHtml, /<h1 class="text-xl font-display font-bold text-neutral-900">Tasks<\/h1>/);
     assert.match(jobsHtml, /Doctor Check-In/);
     assert.match(jobsHtml, /Weekly Review/);
     assert.match(jobsHtml, /Needs confirmation/);
@@ -690,7 +690,7 @@ async function run() {
 
   test("web users: integrations live on their own subpage", () => {
     assert.equal(integrationsPage.status, 200);
-    assert.match(integrationsHtml, /<h2 class="text-sm font-medium text-white">Integrations<\/h2>/);
+    assert.match(integrationsHtml, /<h2 class="text-sm font-medium text-neutral-900">Integrations<\/h2>/);
     assert.match(integrationsHtml, /Add integration/i);
     assert.match(integrationsHtml, /API keys and credentials Kellix uses to connect to third-party services for this member/);
   });

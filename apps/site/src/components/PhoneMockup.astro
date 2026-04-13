@@ -1,0 +1,244 @@
+---
+---
+
+<div class="phone">
+	<div class="phone-screen">
+		<div class="phone-island"></div>
+		<div class="chat-header">
+			<div class="chat-avatar">
+				<svg viewBox="0 0 64 64" fill="none" width="18" height="18">
+					<path d="M32 4 A28 28 0 0 1 60 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/>
+					<path d="M32 60 A28 28 0 0 1 4 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/>
+				</svg>
+			</div>
+			<div class="chat-header-text">
+				<span class="chat-name">Kellix</span>
+				<span class="chat-status">online</span>
+			</div>
+		</div>
+		<div class="chat-messages" data-chat>
+			<div class="msg msg-out">
+				<div class="msg-bubble">Remind me to call mom at 5</div>
+			</div>
+			<div class="msg msg-in">
+				<div class="msg-bubble">Done. I'll ping you at 5pm.</div>
+			</div>
+			<div class="msg-spacer"></div>
+			<div class="msg msg-out">
+				<div class="msg-image">
+					<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+						<rect x="3" y="3" width="18" height="18" rx="2"/>
+						<circle cx="8.5" cy="8.5" r="1.5"/>
+						<path d="M21 15l-5-5L5 21"/>
+					</svg>
+					<span>lunch.jpg</span>
+				</div>
+			</div>
+			<div class="msg msg-in">
+				<div class="msg-bubble">Black bean bowl. 520 kcal logged.</div>
+			</div>
+			<div class="msg-spacer"></div>
+			<div class="msg msg-out">
+				<div class="msg-bubble">What did I eat today?</div>
+			</div>
+			<div class="msg msg-in">
+				<div class="msg-bubble">1,840 kcal so far. 124g protein. You're on track.</div>
+			</div>
+		</div>
+		<div class="chat-input">
+			<span class="chat-input-text">Message Kellix...</span>
+		</div>
+	</div>
+</div>
+
+<style>
+	.phone {
+		width: 300px;
+		border-radius: 44px;
+		border: 4px solid #1a1a1a;
+		background: #1a1a1a;
+		padding: 4px;
+		position: relative;
+		box-shadow:
+			0 24px 48px rgba(0, 0, 0, 0.12),
+			0 8px 16px rgba(0, 0, 0, 0.08);
+		flex-shrink: 0;
+	}
+
+	.phone-screen {
+		background: #fff;
+		border-radius: 40px;
+		overflow: hidden;
+		display: flex;
+		flex-direction: column;
+		height: 520px;
+		position: relative;
+	}
+
+	.phone-island {
+		width: 84px;
+		height: 24px;
+		background: #1a1a1a;
+		border-radius: 20px;
+		margin: 10px auto 0;
+		position: relative;
+		z-index: 2;
+	}
+
+	.chat-header {
+		display: flex;
+		align-items: center;
+		gap: 10px;
+		padding: 12px 16px;
+		border-bottom: 1px solid #f0f0f0;
+		background: #fff;
+	}
+
+	.chat-avatar {
+		width: 32px;
+		height: 32px;
+		border-radius: 999px;
+		background: #171717;
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.chat-header-text {
+		display: flex;
+		flex-direction: column;
+	}
+
+	.chat-name {
+		font-size: 14px;
+		font-weight: 600;
+		color: #171717;
+		line-height: 1.2;
+	}
+
+	.chat-status {
+		font-size: 11px;
+		color: #3d7a5f;
+		line-height: 1.2;
+	}
+
+	.chat-messages {
+		flex: 1;
+		padding: 16px 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+		overflow: hidden;
+		background: #f7f7f7;
+	}
+
+	.msg, .msg-spacer {
+		opacity: 0;
+		transform: translateY(10px);
+		transition: opacity 300ms ease-out, transform 300ms ease-out;
+	}
+
+	.chat-messages.is-visible .msg,
+	.chat-messages.is-visible .msg-spacer {
+		opacity: 1;
+		transform: translateY(0);
+	}
+
+	.chat-messages.is-visible .msg:nth-child(1) { transition-delay: 200ms; }
+	.chat-messages.is-visible .msg:nth-child(2) { transition-delay: 600ms; }
+	.chat-messages.is-visible .msg-spacer:nth-child(3) { transition-delay: 600ms; }
+	.chat-messages.is-visible .msg:nth-child(4) { transition-delay: 1100ms; }
+	.chat-messages.is-visible .msg:nth-child(5) { transition-delay: 1500ms; }
+	.chat-messages.is-visible .msg-spacer:nth-child(6) { transition-delay: 1500ms; }
+	.chat-messages.is-visible .msg:nth-child(7) { transition-delay: 2000ms; }
+	.chat-messages.is-visible .msg:nth-child(8) { transition-delay: 2400ms; }
+
+	.msg {
+		display: flex;
+	}
+
+	.msg-out {
+		justify-content: flex-end;
+	}
+
+	.msg-in {
+		justify-content: flex-start;
+	}
+
+	.msg-bubble {
+		max-width: 82%;
+		padding: 8px 12px;
+		border-radius: 14px;
+		font-size: 13px;
+		line-height: 1.5;
+	}
+
+	.msg-out .msg-bubble {
+		background: #d4f0e0;
+		color: #171717;
+		border-bottom-right-radius: 4px;
+	}
+
+	.msg-in .msg-bubble {
+		background: #fff;
+		color: #333;
+		border-bottom-left-radius: 4px;
+		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+	}
+
+	.msg-spacer {
+		height: 8px;
+	}
+
+	.msg-image {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 14px 18px;
+		border-radius: 14px;
+		border-bottom-right-radius: 4px;
+		background: #d4f0e0;
+		color: #555;
+		font-size: 12px;
+	}
+
+	.chat-input {
+		padding: 14px 16px 28px;
+		border-top: 1px solid #f0f0f0;
+		background: #fff;
+	}
+
+	.chat-input-text {
+		font-size: 13px;
+		color: #aaa;
+	}
+
+	@media (max-width: 768px) {
+		.phone {
+			width: 280px;
+		}
+
+		.phone-screen {
+			height: 480px;
+		}
+	}
+</style>
+
+<script>
+	const chat = document.querySelector('[data-chat]');
+	if (chat) {
+		const observer = new IntersectionObserver(
+			(entries) => {
+				entries.forEach((entry) => {
+					if (entry.isIntersecting) {
+						chat.classList.add('is-visible');
+						observer.disconnect();
+					}
+				});
+			},
+			{ threshold: 0.3 }
+		);
+		observer.observe(chat);
+	}
+</script>

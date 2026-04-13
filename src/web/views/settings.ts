@@ -49,7 +49,7 @@ export function renderSettings(telegramBotToken: string | null, steveVersion: st
           value: timezone,
           placeholder: "Europe/Stockholm",
           appearance: "mono",
-          hint: "Examples: <code class=\"text-zinc-300\">Europe/Stockholm</code>, <code class=\"text-zinc-300\">America/New_York</code>, <code class=\"text-zinc-300\">Asia/Tokyo</code>.",
+          hint: "Examples: <code class=\"text-neutral-600\">Europe/Stockholm</code>, <code class=\"text-neutral-600\">America/New_York</code>, <code class=\"text-neutral-600\">Asia/Tokyo</code>.",
         })}
         <div class="flex justify-end">
           ${Button({ variant: "primary", children: "Save timezone" })}
@@ -62,8 +62,8 @@ export function renderSettings(telegramBotToken: string | null, steveVersion: st
     title: "About",
     children: `
       <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
-        <dt class="text-zinc-500">Version</dt>
-        <dd class="text-zinc-200 font-mono">${escapeHtml(steveVersion)}</dd>
+        <dt class="text-neutral-400">Version</dt>
+        <dd class="text-neutral-700 font-mono">${escapeHtml(steveVersion)}</dd>
       </dl>
     `,
   });

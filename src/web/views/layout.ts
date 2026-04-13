@@ -63,8 +63,8 @@ export function titleCase(value: string): string {
 
 export function flash(message: string, type: "success" | "error" = "success"): string {
   const styles = type === "success"
-    ? "bg-emerald-950/50 border-emerald-800 text-emerald-300"
-    : "bg-red-950/50 border-red-800 text-red-300";
+    ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+    : "bg-red-50 border-red-200 text-red-800";
   return `<div class="border rounded-lg px-4 py-3 mb-6 text-sm ${styles}">${escapeHtml(message)}</div>`;
 }
 
@@ -72,13 +72,13 @@ export function flash(message: string, type: "success" | "error" = "success"): s
 
 export function renderActivityItems(items: ActivityEntry[], opts: { showMember?: boolean } = {}): string {
   if (items.length === 0) {
-    return `<p class="text-sm text-zinc-500">Nothing yet. Activity will show up here once Kellix starts handling messages or tasks.</p>`;
+    return `<p class="text-sm text-neutral-400">Nothing yet. Activity will show up here once Kellix starts handling messages or tasks.</p>`;
   }
 
   return items.map((item) => {
     const dotState: "ok" | "error" | "off" = item.status === "error" ? "error" : item.status === "ok" ? "ok" : "off";
     const memberPrefix = opts.showMember
-      ? `<a href="/users/${encodeURIComponent(item.userName)}" class="text-xs font-medium text-zinc-400 hover:text-white capitalize transition-colors">${escapeHtml(item.userName)}</a><span class="text-zinc-700">·</span>`
+      ? `<a href="/users/${encodeURIComponent(item.userName)}" class="text-xs font-medium text-neutral-500 hover:text-neutral-900 capitalize transition-colors">${escapeHtml(item.userName)}</a><span class="text-neutral-300">·</span>`
       : "";
     return `
       <div class="flex items-start gap-3 py-3 border-b border-border last:border-b-0">
@@ -86,9 +86,9 @@ export function renderActivityItems(items: ActivityEntry[], opts: { showMember?:
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 flex-wrap">
             ${memberPrefix}
-            <p class="text-sm text-zinc-200 min-w-0 truncate">${escapeHtml(item.summary)}</p>
+            <p class="text-sm text-neutral-700 min-w-0 truncate">${escapeHtml(item.summary)}</p>
           </div>
-          <p class="text-xs text-zinc-600 mt-1" title="${escapeHtml(formatDateTime(item.timestamp))}">${escapeHtml(formatRelative(item.timestamp))}</p>
+          <p class="text-xs text-neutral-400 mt-1" title="${escapeHtml(formatDateTime(item.timestamp))}">${escapeHtml(formatRelative(item.timestamp))}</p>
         </div>
       </div>`;
   }).join("");
@@ -103,14 +103,17 @@ export function nav(csrfToken: string, current: NavKey = null): string {
     const active = key === current;
     const base = "text-sm transition-colors py-1 border-b-2";
     const cls = active
-      ? "text-white border-blue-500 font-medium"
-      : "text-zinc-400 border-transparent hover:text-white";
+      ? "text-neutral-900 border-neutral-900 font-medium"
+      : "text-neutral-400 border-transparent hover:text-neutral-700";
     return `<a href="${href}" class="${base} ${cls}">${label}</a>`;
   };
   return `
   <nav class="flex items-center justify-between gap-3 mb-8 border-b border-border pb-3">
     <div class="flex items-center gap-3 sm:gap-6 min-w-0">
-      <a href="/" class="text-sm font-semibold text-white tracking-wide flex-shrink-0">Kellix</a>
+      <a href="/" class="flex items-center gap-2 flex-shrink-0">
+        <svg viewBox="0 0 64 64" fill="none" class="w-5 h-5 text-neutral-900"><path d="M32 4 A28 28 0 0 1 60 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/><path d="M32 60 A28 28 0 0 1 4 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/></svg>
+        <span class="text-sm font-semibold text-neutral-900 tracking-wide">Kellix</span>
+      </a>
       <div class="flex gap-3 sm:gap-5">
         ${link("/", "Members", "home")}
         ${link("/jobs", "Tasks", "tasks")}
@@ -119,7 +122,7 @@ export function nav(csrfToken: string, current: NavKey = null): string {
     </div>
     <form method="POST" action="/logout" class="inline flex-shrink-0">
       ${hiddenCsrf(csrfToken)}
-      <button type="submit" class="text-xs text-zinc-500 hover:text-white transition-colors">Log out</button>
+      <button type="submit" class="text-xs text-neutral-400 hover:text-neutral-700 transition-colors">Log out</button>
     </form>
   </nav>`;
 }
@@ -148,15 +151,22 @@ export const layout = (title: string, body: string, options: LayoutOptions = {})
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kellix - ${title}</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Cpath d='M32 4 A28 28 0 0 1 60 32 A14 14 0 0 1 32 32 Z' fill='%23171717'/%3E%3Cpath d='M32 60 A28 28 0 0 1 4 32 A14 14 0 0 1 32 32 Z' fill='%23171717'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
-      darkMode: 'class',
       theme: {
         extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui', '-apple-system', 'sans-serif'],
+            display: ['Fraunces', 'Georgia', 'serif'],
+          },
           colors: {
-            surface: { DEFAULT: '#111113', card: '#18181b', hover: '#1e1e22' },
-            border: { DEFAULT: '#27272a', focus: '#3b82f6' },
+            surface: { DEFAULT: '#FAFAF7', card: '#ffffff', hover: '#f5f5f0' },
+            border: { DEFAULT: '#e5e2db', focus: '#3d7a5f' },
           }
         }
       }
@@ -166,7 +176,7 @@ export const layout = (title: string, body: string, options: LayoutOptions = {})
   <script defer src="https://unpkg.com/alpinejs@3.14.1/dist/cdn.min.js"></script>
   ${designTokensStyle}
 </head>
-<body class="dark bg-surface text-zinc-300 min-h-screen" hx-boost="true">
+<body class="bg-surface text-neutral-700 min-h-screen" hx-boost="true">
   <div class="${widthClass} mx-auto px-4 py-8">
     ${body}
   </div>
@@ -178,8 +188,8 @@ export const layout = (title: string, body: string, options: LayoutOptions = {})
       function showToast(message, tone) {
         if (!message) return;
         var colors = tone === 'error'
-          ? 'bg-red-950/95 border-red-800 text-red-200'
-          : 'bg-emerald-950/95 border-emerald-800 text-emerald-200';
+          ? 'bg-white border-red-200 text-red-800 shadow-lg'
+          : 'bg-white border-emerald-200 text-emerald-800 shadow-lg';
         var el = document.createElement('div');
         el.className = 'pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-xl backdrop-blur ' + colors;
         el.style.opacity = '0';

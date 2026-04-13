@@ -106,7 +106,7 @@ export function renderUserHeader(name: string, ocStatus: string, agentEnabled: b
   const isRunning = ocStatus === "running";
   const dotState: "ok" | "warn" | "off" = isRunning ? "ok" : agentEnabled ? "warn" : "off";
   const statusLabel = isRunning ? "Running" : agentEnabled ? "Unavailable" : "Paused";
-  const statusTone = isRunning ? "text-emerald-400" : agentEnabled ? "text-amber-300" : "text-zinc-500";
+  const statusTone = isRunning ? "text-emerald-600" : agentEnabled ? "text-amber-600" : "text-neutral-400";
 
   // Every action button targets the header itself so htmx swaps it in place.
   // The route handler returns just renderUserHeader() when HX-Request is set.
@@ -132,11 +132,11 @@ export function renderUserHeader(name: string, ocStatus: string, agentEnabled: b
 
   return `
     <div id="user-header">
-      <a href="/" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; Members</a>
+      <a href="/" class="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">&larr; Members</a>
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mt-4 mb-6 gap-3 sm:gap-4">
         <div class="flex items-center gap-3 min-w-0">
           ${StatusDot({ state: dotState })}
-          <h1 class="text-xl font-semibold text-white capitalize truncate">${escapeHtml(name)}</h1>
+          <h1 class="text-xl font-display font-bold text-neutral-900 capitalize truncate">${escapeHtml(name)}</h1>
           <span class="text-xs ${statusTone}">${statusLabel}</span>
         </div>
         <div class="flex gap-2 flex-shrink-0">
@@ -177,13 +177,13 @@ export function renderUserConnections(name: string, ocStatus: string, csrfToken:
       <form method="POST" action="/users/${slug}/telegram" class="flex flex-col sm:flex-row gap-3 sm:items-end">
         ${hiddenCsrf(csrfToken)}
         <div class="flex-1">
-          <label class="block text-xs text-zinc-400 mb-1">Telegram chat ID</label>
+          <label class="block text-xs text-neutral-500 mb-1">Telegram chat ID</label>
           <input type="text" name="telegram_id" placeholder="e.g. 123456789" value="${escapeHtml(options?.telegramChatId || "")}"
             class="${inputClass}">
         </div>
         ${Button({ variant: "secondary", children: telegramConnected ? "Update" : "Connect" })}
       </form>
-      <p class="text-xs text-zinc-600 mt-3">Open Telegram, message <strong class="text-zinc-400">@userinfobot</strong>, and it will reply with your chat ID. Paste it above.</p>
+      <p class="text-xs text-neutral-400 mt-3">Open Telegram, message <strong class="text-neutral-500">@userinfobot</strong>, and it will reply with your chat ID. Paste it above.</p>
     `,
   });
 
@@ -227,26 +227,26 @@ export function renderUserBrowserPage(name: string, ocStatus: string, csrfToken:
       </div>
       ${Button({ variant: "secondary", disabled: !canAttach, children: attachedBrowser ? "Update Attach" : "Attach Local Chrome" })}
     </form>
-    <p class="text-xs text-zinc-600 mt-3">${canAttach ? "Once attached, tell Kellix to use your attached browser only for sites that need it." : "Start the companion first, then attach Chrome for this member."}</p>
+    <p class="text-xs text-neutral-400 mt-3">${canAttach ? "Once attached, tell Kellix to use your attached browser only for sites that need it." : "Start the companion first, then attach Chrome for this member."}</p>
   `;
 
   const attachedDetail = attachedBrowser ? `
-    <div class="flex items-center justify-between gap-4 text-xs text-zinc-500 mt-4 pt-4 border-t border-border">
+    <div class="flex items-center justify-between gap-4 text-xs text-neutral-400 mt-4 pt-4 border-t border-border">
       <div class="space-y-1">
-        <div>Channel: <span class="text-zinc-300">${escapeHtml(attachedBrowser.channel)}</span></div>
-        <div>Last connected: <span class="text-zinc-300">${escapeHtml(formatDateTime(attachedBrowser.lastConnectedAt || undefined))}</span></div>
+        <div>Channel: <span class="text-neutral-600">${escapeHtml(attachedBrowser.channel)}</span></div>
+        <div>Last connected: <span class="text-neutral-600">${escapeHtml(formatDateTime(attachedBrowser.lastConnectedAt || undefined))}</span></div>
       </div>
       <form method="POST" action="/users/${slug}/browser/detach" class="inline">
         ${hiddenCsrf(csrfToken)}
         ${Button({ variant: "danger", size: "sm", children: "Detach" })}
       </form>
     </div>
-    ${attachedBrowser.lastError ? `<p class="text-xs text-red-300 mt-3">${escapeHtml(attachedBrowser.lastError)}</p>` : ""}
+    ${attachedBrowser.lastError ? `<p class="text-xs text-red-600 mt-3">${escapeHtml(attachedBrowser.lastError)}</p>` : ""}
   ` : "";
 
   const explainer = `
-    <div class="rounded-lg border border-sky-900/60 bg-sky-950/20 p-4 mb-4">
-      <p class="text-xs text-sky-100">Use attached Chrome only when a site needs manual sign-in, passkeys, or a more real browser. Most browsing should stay in the container browser.</p>
+    <div class="rounded-lg border border-sky-200 bg-sky-50 p-4 mb-4">
+      <p class="text-xs text-sky-800">Use attached Chrome only when a site needs manual sign-in, passkeys, or a more real browser. Most browsing should stay in the container browser.</p>
     </div>
   `;
 
@@ -254,23 +254,23 @@ export function renderUserBrowserPage(name: string, ocStatus: string, csrfToken:
     <div class="rounded-lg border border-border bg-surface p-4 mb-4">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <div class="min-w-0">
-          <p class="text-xs font-medium text-zinc-300">Remote browser companion</p>
-          <p class="text-xs text-zinc-500 mt-1">${escapeHtml(browserCompanion.message)}</p>
+          <p class="text-xs font-medium text-neutral-600">Remote browser companion</p>
+          <p class="text-xs text-neutral-400 mt-1">${escapeHtml(browserCompanion.message)}</p>
         </div>
         ${Badge({ tone: companionTone, children: companionLabel })}
       </div>
-      <p class="text-xs text-zinc-500">Start it manually with <code class="text-zinc-300">kellix browser up</code>. Kellix will not auto-start it for you.</p>
+      <p class="text-xs text-neutral-400">Start it manually with <code class="text-neutral-600">kellix browser up</code>. Kellix will not auto-start it for you.</p>
     </div>
   `;
 
   const setupSteps = `
     <div class="rounded-lg border border-border bg-surface p-4 mb-4">
-      <p class="text-xs font-medium text-zinc-300 mb-3">Setup steps</p>
-      <ol class="space-y-2 text-xs text-zinc-500 list-decimal pl-4">
-        <li>${browserCompanion.running ? "Keep the remote browser companion running on the Kellix machine." : "On the Kellix machine, run <code class=\"text-zinc-300\">kellix browser up</code>."}</li>
+      <p class="text-xs font-medium text-neutral-600 mb-3">Setup steps</p>
+      <ol class="space-y-2 text-xs text-neutral-400 list-decimal pl-4">
+        <li>${browserCompanion.running ? "Keep the remote browser companion running on the Kellix machine." : "On the Kellix machine, run <code class=\"text-neutral-600\">kellix browser up</code>."}</li>
         <li>Open Chrome on that same machine.</li>
-        <li>Enable remote debugging at <a href="chrome://inspect/#remote-debugging" class="text-zinc-300 underline decoration-zinc-600 underline-offset-2 hover:text-white">chrome://inspect/#remote-debugging</a>.</li>
-        <li>Choose the Chrome channel below and click <strong class="text-zinc-300">Attach Local Chrome</strong>.</li>
+        <li>Enable remote debugging at <a href="chrome://inspect/#remote-debugging" class="text-neutral-600 underline decoration-neutral-300 underline-offset-2 hover:text-neutral-900">chrome://inspect/#remote-debugging</a>.</li>
+        <li>Choose the Chrome channel below and click <strong class="text-neutral-600">Attach Local Chrome</strong>.</li>
         <li>When Kellix needs the attached browser, approve the prompt in Chrome.</li>
       </ol>
     </div>
@@ -300,11 +300,11 @@ function renderIntegrationRow(name: string, secret: UserAppSecretSummary, csrfTo
   const integrationSlug = encodeURIComponent(secret.integration);
   const title = titleCase(secret.integration);
   return `
-    <div class="bg-surface border border-border rounded-lg p-4 hover:border-zinc-600 transition-colors">
+    <div class="bg-surface border border-border rounded-lg p-4 hover:border-neutral-400 transition-colors">
       <div class="flex items-start justify-between gap-4">
         <div class="min-w-0">
-          <h3 class="text-sm font-medium text-white">${escapeHtml(title)}</h3>
-          <p class="text-xs text-zinc-500 mt-1 truncate">${escapeHtml(secret.fields.join(", "))}</p>
+          <h3 class="text-sm font-medium text-neutral-900">${escapeHtml(title)}</h3>
+          <p class="text-xs text-neutral-400 mt-1 truncate">${escapeHtml(secret.fields.join(", "))}</p>
         </div>
         <div class="flex gap-2 flex-shrink-0">
           ${Button({ variant: "secondary", size: "sm", href: `/users/${slug}/integrations/${integrationSlug}/edit`, children: "Edit" })}
@@ -352,7 +352,7 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
   const currentModelPill = currentModel ? `
     <div class="flex items-center gap-3 mb-4 px-3 py-2.5 bg-surface rounded-lg border border-border">
       ${StatusDot({ state: "ok" })}
-      <span class="text-sm text-zinc-200 font-mono break-all">${escapeHtml(currentModel)}</span>
+      <span class="text-sm text-neutral-700 font-mono break-all">${escapeHtml(currentModel)}</span>
     </div>
   ` : "";
 
@@ -366,7 +366,7 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
   });
 
   const modelForm = providers.length > 0 ? `
-    ${!currentModel ? `<p class="text-xs text-zinc-500 mb-3">Pick a provider and model below, then save to get started.</p>` : ""}
+    ${!currentModel ? `<p class="text-xs text-neutral-400 mb-3">Pick a provider and model below, then save to get started.</p>` : ""}
     <form method="POST" action="/users/${slug}/agent/model"
       x-data='${pickerState}'
       x-effect="
@@ -376,7 +376,7 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
       class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 items-end">
       ${hiddenCsrf(csrfToken)}
       <div>
-        <label for="provider_id" class="block text-xs text-zinc-400 mb-1">Provider</label>
+        <label for="provider_id" class="block text-xs text-neutral-500 mb-1">Provider</label>
         <select id="provider_id" name="provider_id" x-model="providerId" class="${inputClass}">
           <template x-for="p in providers" :key="p.id">
             <option :value="p.id" x-text="p.name"></option>
@@ -384,7 +384,7 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
         </select>
       </div>
       <div>
-        <label for="model_id" class="block text-xs text-zinc-400 mb-1">Model</label>
+        <label for="model_id" class="block text-xs text-neutral-500 mb-1">Model</label>
         <select id="model_id" name="model_id" x-model="modelId" class="${inputClass}">
           <template x-for="m in (providers.find((p) => p.id === providerId) || { models: [] }).models" :key="m.id">
             <option :value="m.id" x-text="m.name"></option>
@@ -393,9 +393,9 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
       </div>
       ${Button({ variant: "primary", children: "Save" })}
     </form>
-    <p class="text-xs text-zinc-600 mt-3">${currentModel ? "The agent restarts automatically after saving so changes take effect right away." : "Kellix will restart the agent after saving."}</p>
+    <p class="text-xs text-neutral-400 mt-3">${currentModel ? "The agent restarts automatically after saving so changes take effect right away." : "Kellix will restart the agent after saving."}</p>
   ` : `
-    <p class="text-xs text-zinc-500">No models available yet. Start the agent first — providers and models will appear once the runtime is ready.</p>
+    <p class="text-xs text-neutral-400">No models available yet. Start the agent first — providers and models will appear once the runtime is ready.</p>
   `;
 
   const modelSection = Section({
@@ -409,19 +409,19 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
   });
 
   const sessionsSection = ocUrl ? `
-    <div class="bg-surface-card border border-border rounded-lg overflow-hidden mb-6">
+    <div class="bg-white border border-border rounded-lg overflow-hidden mb-6">
       <div class="flex items-center justify-between px-5 py-3 border-b border-border">
-        <h2 class="text-sm font-medium text-white">Sessions</h2>
+        <h2 class="text-sm font-medium text-neutral-900">Sessions</h2>
         <a href="${ocUrl}/L2RhdGE" target="_blank"
-          class="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Open in new tab &nearr;</a>
+          class="text-xs text-neutral-400 hover:text-neutral-600 transition-colors">Open in new tab &nearr;</a>
       </div>
-      <p class="text-xs text-zinc-600 px-5 py-2">Live view of the agent's coding environment. Click the project name (top-left) and search <code class="text-zinc-300">//data</code> to browse past sessions.</p>
+      <p class="text-xs text-neutral-400 px-5 py-2">Live view of the agent's coding environment. Click the project name (top-left) and search <code class="text-neutral-600">//data</code> to browse past sessions.</p>
       <iframe src="${ocUrl}" class="w-full border-0" style="height:600px"></iframe>
     </div>
   ` : Section({
     title: "Sessions",
     className: "mb-6",
-    children: `<p class="text-sm text-zinc-500">Start the agent to view live sessions here.</p>`,
+    children: `<p class="text-sm text-neutral-400">Start the agent to view live sessions here.</p>`,
   });
 
   const logsSection = Section({
@@ -429,7 +429,7 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
     description: "Recent output from this member's agent. Updates every few seconds.",
     children: `
       <pre id="logs"
-           class="bg-black/50 rounded-lg p-4 text-xs text-zinc-400 font-mono overflow-auto max-h-60 whitespace-pre-wrap"
+           class="bg-neutral-100 rounded-lg p-4 text-xs text-neutral-500 font-mono overflow-auto max-h-60 whitespace-pre-wrap"
            hx-get="/users/${slug}/logs"
            hx-trigger="load, every 5s"
            hx-swap="innerHTML"

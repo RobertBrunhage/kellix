@@ -2,6 +2,7 @@ node_modules/
 dist/
 data/
 .steve-dev/
+.kellix-dev/
 .env
 opencode.json
 docker-compose.dev.yml

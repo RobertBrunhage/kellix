@@ -62,15 +62,15 @@ function renderIntegrationForm(opts: IntegrationFormOptions): string {
         value: integration,
         required: true,
         appearance: "mono",
-        hint: "A short slug like <code class=\"text-zinc-300\">withings</code> or <code class=\"text-zinc-300\">weather</code>.",
+        hint: "A short slug like <code class=\"text-neutral-600\">withings</code> or <code class=\"text-neutral-600\">weather</code>.",
         autofocus: !integration,
       })}
     `
     : `
       <div>
-        <label class="block text-xs text-zinc-400 mb-1">Integration</label>
+        <label class="block text-xs text-neutral-500 mb-1">Integration</label>
         <div class="${inputClass} flex items-center justify-between">
-          <span class="text-zinc-200 font-mono">${escapeHtml(integration)}</span>
+          <span class="text-neutral-700 font-mono">${escapeHtml(integration)}</span>
           ${Badge({ tone: "neutral", children: "Locked" })}
         </div>
       </div>
@@ -81,27 +81,27 @@ function renderIntegrationForm(opts: IntegrationFormOptions): string {
   const fieldsBlock = `
     <div x-data='${alpineState}' class="space-y-3">
       <template x-for="(row, i) in rows" :key="i">
-        <div class="flex flex-col sm:flex-row gap-2 sm:items-center group rounded-lg sm:rounded-none p-2 sm:p-0 bg-surface/50 sm:bg-transparent border sm:border-0 border-border">
+        <div class="flex flex-col sm:flex-row gap-2 sm:items-center group rounded-lg sm:rounded-none p-2 sm:p-0 bg-neutral-50 sm:bg-transparent border sm:border-0 border-border">
           <input type="text"
             :name="'field_name_' + i"
             x-model="row.name"
             placeholder="field name (e.g. client_id)"
-            class="w-full sm:flex-none sm:w-44 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+            class="w-full sm:flex-none sm:w-44 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-neutral-900 font-mono placeholder-neutral-400 focus:border-border-focus focus:outline-none">
           <input type="password"
             :name="'field_value_' + i"
             x-model="row.value"
             placeholder="${escapeHtml(valuePlaceholder)}"
-            class="w-full sm:flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-white font-mono placeholder-zinc-600 focus:border-border-focus focus:outline-none">
+            class="w-full sm:flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-sm text-neutral-900 font-mono placeholder-neutral-400 focus:border-border-focus focus:outline-none">
           <button type="button"
             @click="rows.splice(i, 1)"
             x-show="rows.length > 1"
-            class="text-zinc-600 hover:text-red-400 transition-colors text-xs sm:text-lg sm:px-2 self-start sm:self-auto"
+            class="text-neutral-400 hover:text-red-600 transition-colors text-xs sm:text-lg sm:px-2 self-start sm:self-auto"
             title="Remove field"><span class="sm:hidden">Remove field</span><span class="hidden sm:inline">&times;</span></button>
         </div>
       </template>
       <button type="button"
         @click="rows.push({ name: '', value: '' })"
-        class="mt-3 px-3 py-1.5 text-xs rounded-md bg-zinc-800 text-zinc-400 hover:bg-zinc-700 hover:text-zinc-300 transition-colors">
+        class="mt-3 px-3 py-1.5 text-xs rounded-md bg-neutral-100 text-neutral-500 hover:bg-neutral-200 hover:text-neutral-600 transition-colors">
         + Add another field
       </button>
     </div>
@@ -115,8 +115,8 @@ function renderIntegrationForm(opts: IntegrationFormOptions): string {
         ${hiddenCsrf(csrfToken)}
         ${integrationField}
         <div>
-          <label class="block text-xs text-zinc-400 mb-1">Credentials</label>
-          <p class="text-xs text-zinc-600 mb-3">Add the API keys, client secrets, or tokens this integration needs. OAuth tokens are stored automatically when you sign in.</p>
+          <label class="block text-xs text-neutral-500 mb-1">Credentials</label>
+          <p class="text-xs text-neutral-400 mb-3">Add the API keys, client secrets, or tokens this integration needs. OAuth tokens are stored automatically when you sign in.</p>
           ${fieldsBlock}
         </div>
         <div class="flex items-center justify-between gap-3 pt-4 border-t border-border">
@@ -137,9 +137,9 @@ function renderIntegrationForm(opts: IntegrationFormOptions): string {
 
   return layout(title, `
     ${nav(csrfToken, "home")}
-    <a href="/users/${slug}/integrations" class="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">&larr; ${escapeHtml(userName)}'s integrations</a>
+    <a href="/users/${slug}/integrations" class="text-sm text-neutral-400 hover:text-neutral-600 transition-colors">&larr; ${escapeHtml(userName)}'s integrations</a>
     <div class="mt-4 mb-6 flex items-center gap-3">
-      <h1 class="text-xl font-semibold text-white">${escapeHtml(title)}</h1>
+      <h1 class="text-xl font-display font-bold text-neutral-900">${escapeHtml(title)}</h1>
       ${Badge({ tone: "neutral", children: `for ${escapeHtml(userName)}` })}
     </div>
     ${errorHtml}
