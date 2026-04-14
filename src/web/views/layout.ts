@@ -111,7 +111,7 @@ export function nav(csrfToken: string, current: NavKey = null): string {
   <nav class="flex items-center justify-between gap-3 mb-8 border-b border-border pb-3">
     <div class="flex items-center gap-3 sm:gap-6 min-w-0">
       <a href="/" class="flex items-center gap-2 flex-shrink-0">
-        <svg viewBox="0 0 64 64" fill="none" class="w-5 h-5 text-neutral-900"><path d="M32 4 A28 28 0 0 1 60 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/><path d="M32 60 A28 28 0 0 1 4 32 A14 14 0 0 1 32 32 Z" fill="currentColor"/></svg>
+        <svg viewBox="0 0 64 64" fill="none" class="w-5 h-5 text-neutral-900"><g fill="currentColor"><rect x="18" y="10" width="28" height="10" rx="5"/><rect x="12" y="26" width="40" height="12" rx="6" opacity="0.8"/><rect x="20" y="44" width="24" height="10" rx="5" opacity="0.6"/></g></svg>
         <span class="text-sm font-semibold text-neutral-900 tracking-wide">Kellix</span>
       </a>
       <div class="flex gap-3 sm:gap-5">
@@ -151,7 +151,7 @@ export const layout = (title: string, body: string, options: LayoutOptions = {})
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Kellix - ${title}</title>
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Cpath d='M32 4 A28 28 0 0 1 60 32 A14 14 0 0 1 32 32 Z' fill='%23171717'/%3E%3Cpath d='M32 60 A28 28 0 0 1 4 32 A14 14 0 0 1 32 32 Z' fill='%23171717'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none'%3E%3Crect x='18' y='10' width='28' height='10' rx='5' fill='%23171717'/%3E%3Crect x='12' y='26' width='40' height='12' rx='6' fill='%23171717' fill-opacity='0.8'/%3E%3Crect x='20' y='44' width='24' height='10' rx='5' fill='%23171717' fill-opacity='0.6'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
