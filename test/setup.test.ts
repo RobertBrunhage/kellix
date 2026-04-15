@@ -715,7 +715,26 @@ async function run() {
     });
 
     assert.match(hiddenModelHtml, /"id":"openai\/gpt-5\.4"/);
-    assert.match(hiddenModelHtml, /"modelId":"openai\/gpt-5\.4"/);
+    assert.match(hiddenModelHtml, /"initialModelId":"openai\/gpt-5\.4"/);
+  });
+
+  test("web users: agent page initializes the current model after Alpine renders options", () => {
+    const initializedModelHtml = renderUserAgentPage("friend", "running", "http://localhost:3456", "csrf-token", {
+      currentModel: "openai/gpt-5.4",
+      modelProviders: [
+        {
+          id: "openai",
+          name: "OpenAI",
+          models: [
+            { id: "codex-mini-latest", name: "Codex Mini" },
+            { id: "gpt-5.4", name: "GPT-5.4" },
+          ],
+        },
+      ],
+    });
+
+    assert.match(initializedModelHtml, /"initialModelId":"openai\/gpt-5\.4"/);
+    assert.match(initializedModelHtml, /x-init="\$nextTick\(\(\) => \{/);
   });
 
   const saveAgentModel = await app.request("/users/friend/agent/model", {

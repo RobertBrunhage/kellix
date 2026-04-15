@@ -360,9 +360,14 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
     })),
     currentModel,
   );
-  const [currentProvider, currentModelId] = currentModel.includes("/")
+  const [currentProvider, configuredModelId] = currentModel.includes("/")
     ? [currentModel.split("/")[0] || "", currentModel]
     : ["", currentModel];
+  const initialProviderId = currentProvider || providers[0]?.id || "";
+  const initialProviderModels = providers.find((provider) => provider.id === initialProviderId)?.models || [];
+  const initialModelId = initialProviderModels.some((model) => model.id === configuredModelId)
+    ? configuredModelId
+    : "";
 
   const currentModelPill = currentModel ? `
     <div class="flex items-center gap-3 mb-4 px-3 py-2.5 bg-surface rounded-lg border border-border">
@@ -376,17 +381,25 @@ export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: strin
   // and snaps to the first model if the previous selection isn't valid.
   const pickerState = jsonAttr({
     providers,
-    providerId: currentProvider || providers[0]?.id || "",
-    modelId: currentModelId || "",
+    providerId: initialProviderId,
+    modelId: "",
+    initialModelId,
   });
 
   const modelForm = providers.length > 0 ? `
     ${!currentModel ? `<p class="text-xs text-neutral-400 mb-3">Pick a provider and model below, then save to get started.</p>` : ""}
     <form method="POST" action="/users/${slug}/agent/model"
       x-data='${pickerState}'
+      x-init="$nextTick(() => {
+        const cm = (providers.find((p) => p.id === providerId) || { models: [] }).models;
+        modelId = initialModelId && cm.some((m) => m.id === initialModelId)
+          ? initialModelId
+          : (cm[0]?.id || '');
+      })"
       x-effect="
         const cm = (providers.find((p) => p.id === providerId) || { models: [] }).models;
-        if (cm.length > 0 && !cm.some((m) => m.id === modelId)) modelId = cm[0].id;
+        if (cm.length === 0) modelId = '';
+        else if (!cm.some((m) => m.id === modelId)) modelId = cm[0].id;
       "
       class="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 items-end">
       ${hiddenCsrf(csrfToken)}
