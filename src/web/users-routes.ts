@@ -434,14 +434,22 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
     const validatedName = validateUserSlug(c.req.param("name"));
     if (!validatedName.ok) return c.redirect("/");
 
-    const providerId = String(result.body.provider_id || "").trim();
-    const modelId = String(result.body.model_id || "").trim();
-    if (!providerId || !modelId) {
+    const submittedProviderId = String(result.body.provider_id || "").trim();
+    const submittedModelId = String(result.body.model_id || "").trim();
+    if (!submittedProviderId || !submittedModelId) {
       return c.redirect(`/users/${validatedName.value}/agent`);
     }
 
+    const providerId = submittedModelId.includes("/")
+      ? submittedModelId.split("/")[0] || submittedProviderId
+      : submittedProviderId;
+    const modelId = submittedModelId.includes("/")
+      ? submittedModelId.slice(submittedModelId.indexOf("/") + 1)
+      : submittedModelId;
+    const configuredModel = submittedModelId.includes("/") ? submittedModelId : `${providerId}/${modelId}`;
+
     const nextConfig = readUserOpenCodeConfig(validatedName.value);
-    nextConfig.model = `${providerId}/${modelId}`;
+    nextConfig.model = configuredModel;
 
     if (providerId === "local" || providerId === "ollama") {
       const providers = nextConfig.provider && typeof nextConfig.provider === "object"
@@ -484,7 +492,7 @@ export function registerUsersRoutes(app: Hono, deps: WebRouteDeps) {
         startUserAgent(getComposeProject(), validatedName.value);
       }
     }
-    setFlash(c, `Model set to ${providerId}/${modelId}`);
+    setFlash(c, `Model set to ${configuredModel}`);
     return c.redirect(`/users/${validatedName.value}/agent`);
   });
 

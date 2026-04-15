@@ -1,4 +1,5 @@
 ---
+import { KELLIX_LOGO_MARK_CONTENT, KELLIX_LOGO_VIEWBOX } from '../../../../src/brand/logo.js';
 ---
 
 <div class="phone">
@@ -6,13 +7,7 @@
 		<div class="phone-island"></div>
 		<div class="chat-header">
 			<div class="chat-avatar">
-				<svg viewBox="0 0 64 64" fill="none" width="18" height="18">
-					<g fill="currentColor">
-						<rect x="18" y="10" width="28" height="10" rx="5"/>
-						<rect x="12" y="26" width="40" height="12" rx="6" opacity="0.8"/>
-						<rect x="20" y="44" width="24" height="10" rx="5" opacity="0.6"/>
-					</g>
-				</svg>
+				<svg viewBox={KELLIX_LOGO_VIEWBOX} fill="none" width="18" height="18" set:html={KELLIX_LOGO_MARK_CONTENT} />
 			</div>
 			<div class="chat-header-text">
 				<span class="chat-name">Kellix</span>

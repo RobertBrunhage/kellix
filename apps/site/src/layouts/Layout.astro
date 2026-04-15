@@ -1,4 +1,6 @@
 ---
+import { getKellixBadgeFaviconHref } from '../../../../src/brand/logo.js';
+
 interface Props {
 	title?: string;
 	description?: string;
@@ -11,6 +13,7 @@ const {
 
 const pageUrl = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
 const ogImageUrl = new URL('/og.png', Astro.site ?? Astro.url);
+const faviconHref = getKellixBadgeFaviconHref();
 ---
 
 <!doctype html>
@@ -18,8 +21,8 @@ const ogImageUrl = new URL('/og.png', Astro.site ?? Astro.url);
 	<head>
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<link rel="icon" type="image/svg+xml" href={faviconHref} />
+		<link rel="shortcut icon" href={faviconHref} />
 		<link rel="preconnect" href="https://fonts.googleapis.com" />
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 		<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,700;9..144,800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />

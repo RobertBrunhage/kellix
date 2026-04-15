@@ -1,6 +1,7 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import PhoneMockup from '../components/PhoneMockup.astro';
+import { KELLIX_LOGO_MARK_CONTENT, KELLIX_LOGO_VIEWBOX } from '../../../../src/brand/logo.js';
 
 const installCommand = 'curl -fsSL https://raw.githubusercontent.com/robertbrunhage/kellix/main/install.sh | bash';
 ---
@@ -14,13 +15,7 @@ const installCommand = 'curl -fsSL https://raw.githubusercontent.com/robertbrunh
 		<section class="hero">
 			<div class="container">
 				<div class="hero-brand">
-					<svg class="hero-logo" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-						<g fill="currentColor">
-							<rect x="18" y="10" width="28" height="10" rx="5"/>
-							<rect x="12" y="26" width="40" height="12" rx="6" opacity="0.8"/>
-							<rect x="20" y="44" width="24" height="10" rx="5" opacity="0.6"/>
-						</g>
-					</svg>
+					<svg class="hero-logo" viewBox={KELLIX_LOGO_VIEWBOX} fill="none" xmlns="http://www.w3.org/2000/svg" set:html={KELLIX_LOGO_MARK_CONTENT} />
 					<h1>Kellix</h1>
 				</div>
 				<p class="lead">

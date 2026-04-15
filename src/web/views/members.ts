@@ -37,22 +37,28 @@ export interface RenderUserOptions {
 type ModelOption = { id: string; name: string };
 type ModelProvider = { id: string; name: string; models: ModelOption[] };
 
+function toQualifiedModelId(providerId: string, modelId: string): string {
+  return modelId.includes("/") ? modelId : `${providerId}/${modelId}`;
+}
+
 function ensureCurrentModelIsSelectable(providers: ModelProvider[], currentModel: string): ModelProvider[] {
   if (!currentModel.includes("/")) return providers;
 
   const providerId = currentModel.split("/")[0] || "";
-  const modelId = currentModel.slice(currentModel.indexOf("/") + 1);
-  if (!providerId || !modelId) return providers;
+  if (!providerId) return providers;
 
   const providerIndex = providers.findIndex((provider) => provider.id === providerId);
   if (providerIndex === -1) {
-    return [...providers, { id: providerId, name: providerId, models: [{ id: modelId, name: modelId }] }];
+    const modelName = currentModel.slice(currentModel.indexOf("/") + 1) || currentModel;
+    return [...providers, { id: providerId, name: providerId, models: [{ id: currentModel, name: modelName }] }];
   }
 
   const provider = providers[providerIndex]!;
-  if (provider.models.some((model) => model.id === modelId)) return providers;
+  if (provider.models.some((model) => model.id === currentModel)) return providers;
 
-  const nextModels = [...provider.models, { id: modelId, name: modelId }]
+  const modelName = currentModel.slice(currentModel.indexOf("/") + 1) || currentModel;
+
+  const nextModels = [...provider.models, { id: currentModel, name: modelName }]
     .sort((a, b) => a.name.localeCompare(b.name));
 
   return providers.map((entry, index) => index === providerIndex ? { ...entry, models: nextModels } : entry);
@@ -344,9 +350,18 @@ export function renderUserIntegrationsPage(name: string, ocStatus: string, csrfT
 export function renderUserAgentPage(name: string, ocStatus: string, ocUrl: string, csrfToken: string, options?: RenderUserOptions): string {
   const slug = encodeURIComponent(name);
   const currentModel = options?.currentModel || "";
-  const providers = ensureCurrentModelIsSelectable(options?.modelProviders || [], currentModel);
+  const providers = ensureCurrentModelIsSelectable(
+    (options?.modelProviders || []).map((provider) => ({
+      ...provider,
+      models: provider.models.map((model) => ({
+        ...model,
+        id: toQualifiedModelId(provider.id, model.id),
+      })),
+    })),
+    currentModel,
+  );
   const [currentProvider, currentModelId] = currentModel.includes("/")
-    ? [currentModel.split("/")[0] || "", currentModel.slice(currentModel.indexOf("/") + 1)]
+    ? [currentModel.split("/")[0] || "", currentModel]
     : ["", currentModel];
 
   const currentModelPill = currentModel ? `

@@ -714,8 +714,28 @@ async function run() {
       ],
     });
 
-    assert.match(hiddenModelHtml, /"id":"gpt-5\.4"/);
-    assert.match(hiddenModelHtml, /"modelId":"gpt-5\.4"/);
+    assert.match(hiddenModelHtml, /"id":"openai\/gpt-5\.4"/);
+    assert.match(hiddenModelHtml, /"modelId":"openai\/gpt-5\.4"/);
+  });
+
+  const saveAgentModel = await app.request("/users/friend/agent/model", {
+    method: "POST",
+    headers: {
+      "content-type": "application/x-www-form-urlencoded",
+      cookie: adminCookie || "",
+    },
+    body: new URLSearchParams({
+      _csrf: adminCsrf || "",
+      provider_id: "openai",
+      model_id: "openai/gpt-5.4",
+    }),
+  });
+  const savedAgentConfig = JSON.parse(readFileSync(join(testDir, "users", "friend", "opencode.json"), "utf-8"));
+
+  test("web users: agent model save preserves fully qualified model ids", () => {
+    assert.equal(saveAgentModel.status, 302);
+    assert.equal(saveAgentModel.headers.get("location"), "/users/friend/agent");
+    assert.equal(savedAgentConfig.model, "openai/gpt-5.4");
   });
 
   const newSecretPage = await app.request("/users/friend/integrations/new", {
